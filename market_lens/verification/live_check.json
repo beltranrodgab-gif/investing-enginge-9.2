@@ -1,0 +1,24 @@
+{
+  "utc": "2026-11-20T12:17:38.743151Z",
+  "worker_online": true,
+  "heartbeat": "2026-11-20T12:17:36.706402Z",
+  "scheduler_state": "running",
+  "registered_feeds": 23,
+  "enabled_feeds": 23,
+  "accepted_feeds": 23,
+  "enabled_series": 73,
+  "accepted_polls": 23,
+  "change_events": 0,
+  "series_by_state": {
+    "accepted": 72,
+    "latest value missing": 1
+  },
+  "publishers": 9,
+  "factor_codes": 18,
+  "receipt_parser": "35.2",
+  "restarted_without_refetch": true,
+  "clock_basis": "Sandbox receiver UTC; these receipts are NOT available as of the frozen 2026-11-18 cutoff.",
+  "baseline_cells": 6046,
+  "raw_bytes": 1283588,
+  "raw_hashes_and_normalized_snapshots_replayed": 23
+}
