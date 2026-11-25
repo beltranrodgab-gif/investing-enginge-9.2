@@ -24,6 +24,12 @@ def start_server(home,bind,port):
    u=urlsplit(self.path);path=u.path;args=parse_qs(u.query,max_num_fields=8);arg=lambda k:args.get(k,[''])[0][:150]
    if path=='/':return self.send((ROOT/'monitor.html').read_bytes(),'text/html; charset=utf-8')
    if path=='/favicon.ico':return self.send(b'','image/x-icon',204)
+   if path.startswith('/api/data/'):
+    from obsidian.data.service import web_view
+    try:v=web_view(home,path,arg)
+    except FileNotFoundError:return self.send(json.dumps({'error':'no OBSIDIAN data store yet; run: market_lens.py data init'}),'application/json; charset=utf-8',404)
+    except KeyError:return self.send('Not found','text/plain',404)
+    return self.send(json.dumps(v,ensure_ascii=False,default=str),'application/json; charset=utf-8')
    with contextlib.closing(db(home)) as c:
     c.execute('pragma query_only=on');c.execute('BEGIN')
     if path=='/api/status':v=status(c,home)

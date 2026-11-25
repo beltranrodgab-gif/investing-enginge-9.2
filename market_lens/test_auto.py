@@ -2476,6 +2476,21 @@ class ReviewFixes(unittest.TestCase):
       missing.add((f, n))
   self.assertEqual(missing, set())
 
+ def test_installed_runtime_contains_the_obsidian_package(self):
+  import autostart as au, subprocess, sys, tempfile
+  from pathlib import Path
+  root = Path(au.__file__).resolve().parent
+  shipped = {p.relative_to(root).as_posix() for p in (root / 'obsidian').rglob('*.py')
+             if 'tests' not in p.parts}
+  self.assertEqual(shipped - set(au.CORE), set())
+  with tempfile.TemporaryDirectory() as td:
+   entry = au.install_runtime(Path(td))
+   r = subprocess.run([sys.executable, '-I', '-c', 'import sys; sys.path.insert(0, sys.argv[1]); '
+                       'from obsidian.data import service; print(len(service.sources()["licenses"]))',
+                       str(entry.parent)], capture_output=True, text=True, timeout=60)
+   self.assertEqual(r.returncode, 0, r.stderr)
+   self.assertEqual(r.stdout.strip(), '4')
+
  # 13. fees and the point-in-time replay
  def test_backtest_fees_follow_turnover(self):
   import stock_selector as ss

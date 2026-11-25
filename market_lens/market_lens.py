@@ -68,6 +68,16 @@ def main():
  rp.add_argument('--journal',type=Path,help='official collection folder to check macro datasets against')
  rp.add_argument('--max-issuers',default=25,type=int,help='cap on issuers fetched from EDGAR in one run')
  rp.add_argument('--store',type=Path,help='research database path (default <state folder>/research.db)')
+ dp=s.add_parser('data',help='OBSIDIAN data layer: point-in-time store, adapters and licensing register')
+ dsub=dp.add_subparsers(dest='data_cmd',required=True)
+ dsub.add_parser('init',help='create the point-in-time store and register every known series')
+ dsub.add_parser('sync',help='import the Market Lens journal into the point-in-time store (incremental)')
+ df=dsub.add_parser('fetch',help='fetch one source into the store (fred needs FRED_API_KEY)');df.add_argument('source',choices=('fred','ecb','yahoo'));df.add_argument('--series',action='append',default=[],help='series id, repeatable (default: the whole catalog)');df.add_argument('--symbol',action='append',default=[],help='yahoo ticker, repeatable')
+ da=dsub.add_parser('asof',help='point-in-time values of one series');da.add_argument('series');da.add_argument('--at',help='UTC time; default now');da.add_argument('--start');da.add_argument('--end')
+ dq=dsub.add_parser('quality',help='freshness, last value and issue counts per series');dq.add_argument('--at')
+ dl=dsub.add_parser('series',help='list registered series');dl.add_argument('--source');dl.add_argument('--category')
+ dsub.add_parser('sources',help='licensing register and adapters')
+ dsub.add_parser('runs',help='recent ingestion runs')
  g=a.parse_args();home=g.data.expanduser().resolve();j=lambda x:print(json.dumps(x,indent=2,ensure_ascii=False,default=str))
  if g.cmd in ('enable','disable'):
   import autostart;return autostart.main(g.cmd,home)
@@ -132,6 +142,19 @@ def main():
    guard(0<=g.regime_scale<=1,'--regime-scale must be in [0, 1]')
   if getattr(g,'history',None):
    hist=json.loads(Path(g.history).read_text('utf-8'));guard(isinstance(hist,list),'history must be a JSON list of regime names')
+ if g.cmd=='data':
+  from obsidian.data import service as DS
+  dc=g.data_cmd
+  if dc=='sources':j(DS.sources());return 0
+  if dc=='init':j(DS.init(home));return 0
+  if dc=='sync':
+   with contextlib.closing(db(home)) as jc:jc.execute('pragma query_only=on');j(DS.sync_journal(home,jc))
+   return 0
+  if dc=='fetch':j(DS.fetch(home,g.source,g.series or None,g.symbol or None));return 0
+  if dc=='asof':j(DS.as_of(home,g.series,g.at,g.start,g.end));return 0
+  if dc=='quality':j(DS.quality(home,g.at));return 0
+  if dc=='series':j(DS.series(home,g.source,g.category));return 0
+  if dc=='runs':j(DS.runs(home));return 0
  if g.cmd=='research':
   import research as R, research_store as RS, market_data as MD
   spath=(g.store or (home/'research.db')).expanduser().resolve()

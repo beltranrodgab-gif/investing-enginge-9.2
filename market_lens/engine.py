@@ -35,6 +35,18 @@ def select_due(c,schedules,active,host_after,d,mono,remaining=None):
   if h not in busy:picks.append((k,h));busy.add(h)
  return picks
 
+def sync_obsidian(c,home):
+ """Keep the OBSIDIAN point-in-time store current. Opt-in: runs only after `data init` created it.
+ A failure is logged and never interrupts collection."""
+ from pathlib import Path as _P
+ if not (_P(home)/'obsidian.sqlite3').is_file():return None
+ try:
+  from obsidian.data import service as DS
+  r=DS.sync_journal(home,c)
+  if r.get('snapshots'):LOG.info('OBSIDIAN store synced: %s',json.dumps(r))
+  return r
+ except Exception as e:
+  LOG.warning('OBSIDIAN store not synced (%s); collection continues.',e);return None
 def run(home,once=False,only=None,bind='127.0.0.1',port=8790,web=True,stop=None,checkpoint_path=None):
  schedules=settings(home)
  if only:guard(only in schedules,'feed not enabled');schedules={only:schedules[only]}
@@ -63,7 +75,7 @@ def run(home,once=False,only=None,bind='127.0.0.1',port=8790,web=True,stop=None,
       if once:res.append(x)
       del active[k];last_host[h]=mono+2;dirty=True;export_dirty=True
      if (mono>=export_at or export_dirty and not active):
-      try:latest(c,home);export_dirty=False
+      try:latest(c,home);export_dirty=False;sync_obsidian(c,home)
       except (OSError,sqlite3.Error) as e:export_dirty=False;LOG.warning('Local CSV not refreshed (%s); live search still reads SQLite.',e)
       export_at=mono+15
      if checkpoint_path and dirty and mono>=checkpoint_at and not active and not select_due(c,schedules,active,last_host,d,mono,remaining):

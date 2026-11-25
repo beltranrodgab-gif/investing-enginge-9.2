@@ -1,7 +1,7 @@
 """Install/remove a user-owned start-at-login service. Never enables anything on download, needs an explicit enable command."""
 import contextlib,datetime as dt,hashlib,os,plistlib,shutil,sqlite3,subprocess,sys,tempfile,time,xml.etree.ElementTree as ET
 from pathlib import Path
-ROOT=Path(__file__).resolve().parent;TASK='Market Lens Auto 6.8';UNIT='market-lens-auto-68.service';LABEL='org.marketlens.auto68';CORE=('market_lens.py','sources.py','net.py','store.py','engine.py','dashboard.py','monitor.html','autostart.py','materialize.py','finance_feed.py','reliability.py','market_feed.py','strategy_adapter.py','strategy_engine.py','asset_classes.py','backtest.py','alpha_engine.py','macro_alerts.py','paper_trader.py','signal_filter.py','daily_processor.py','trade_signals.py','event_engine.py','stock_selector.py','jarvis_supervisor.py','plan_api.py','efficient_frontier.py','portfolio_optimizer.py','paper_account.py','yahoo_prices.py','research_store.py','market_data.py','sec_edgar.py','short_interest.py','research.py','quote_surface.py','analyst_consensus.py','delisted.py','delist_events.py');MARK='Market Lens Auto 6.8';HOME=Path.home()
+ROOT=Path(__file__).resolve().parent;TASK='Market Lens Auto 6.8';UNIT='market-lens-auto-68.service';LABEL='org.marketlens.auto68';CORE=('market_lens.py','sources.py','net.py','store.py','engine.py','dashboard.py','monitor.html','autostart.py','materialize.py','finance_feed.py','reliability.py','market_feed.py','strategy_adapter.py','strategy_engine.py','asset_classes.py','backtest.py','obsidian/__init__.py','obsidian/data/__init__.py','obsidian/data/contract.py','obsidian/data/licenses.py','obsidian/data/store.py','obsidian/data/validate.py','obsidian/data/service.py','obsidian/data/adapters/__init__.py','obsidian/data/adapters/base.py','obsidian/data/adapters/fred.py','obsidian/data/adapters/ecb.py','obsidian/data/adapters/yahoo.py','obsidian/data/adapters/marketlens.py','alpha_engine.py','macro_alerts.py','paper_trader.py','signal_filter.py','daily_processor.py','trade_signals.py','event_engine.py','stock_selector.py','jarvis_supervisor.py','plan_api.py','efficient_frontier.py','portfolio_optimizer.py','paper_account.py','yahoo_prices.py','research_store.py','market_data.py','sec_edgar.py','short_interest.py','research.py','quote_surface.py','analyst_consensus.py','delisted.py','delist_events.py');MARK='Market Lens Auto 6.8';HOME=Path.home()
 def cmd(argv,check=True):
  r=subprocess.run(list(map(str,argv)),capture_output=True,text=True,errors='replace',timeout=55)
  if check and r.returncode:raise RuntimeError((r.stderr.strip() or r.stdout.strip() or 'service command failed')[:650])
@@ -23,7 +23,7 @@ def win_task(args,user):
 def install_runtime(home):
  literal=b''.join(f.encode()+b'\0'+(ROOT/f).read_bytes()+b'\0' for f in CORE);name=hashlib.sha256(literal).hexdigest()[:16];dest=home/'runtime'/name;dest.mkdir(parents=True,exist_ok=True)
  for f in CORE:
-  p=dest/f
+  p=dest/f;p.parent.mkdir(parents=True,exist_ok=True)
   if p.exists() and p.read_bytes()!=(ROOT/f).read_bytes():raise ValueError('modified installed runtime. Choose a fresh data folder.')
   if not p.exists():shutil.copyfile(ROOT/f,p)
  return dest/'market_lens.py'
