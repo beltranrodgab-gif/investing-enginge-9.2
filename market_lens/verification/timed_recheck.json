@@ -1,0 +1,16 @@
+{
+  "test": "idle to due; actual publisher HTTPS",
+  "qa_only_shortened_due": "2026-11-20T12:12:28.577396Z",
+  "prior_feed_poll_count": 1,
+  "after_feed_poll_count": 2,
+  "scheduled_receipt": {
+    "id": 24,
+    "started": "2026-11-20T12:12:28.708126Z",
+    "indexed": "2026-11-20T12:12:30.318986Z",
+    "kind": "unchanged",
+    "h": "b626823c8c9d73dcffba0e48cfb820ebf8041d35361b93ccfb60501a02325f4e",
+    "request_url": "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist-90d.xml"
+  },
+  "next_ordinary_due": "2026-11-20T12:42:30.318986Z",
+  "restart": "no extra poll before due"
+}

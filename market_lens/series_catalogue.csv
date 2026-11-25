@@ -1,0 +1,155 @@
+﻿id,feed,publisher,label,geos,factor,unit,freq,tail_days,relation
+ECB.CAD,ecb,European Central Bank,Euro reference fixing · CAD per EUR,CA,FX-01,CAD per EUR,D,6,Reference rate; not executable
+ECB.CNY,ecb,European Central Bank,Euro reference fixing · CNY per EUR,CN,FX-01,CNY per EUR,D,6,Reference rate; not executable
+ECB.GBP,ecb,European Central Bank,Euro reference fixing · GBP per EUR,GB,FX-01,GBP per EUR,D,6,Reference rate; not executable
+ECB.JPY,ecb,European Central Bank,Euro reference fixing · JPY per EUR,JP,FX-01,JPY per EUR,D,6,Reference rate; not executable
+ECB.USD,ecb,European Central Bank,Euro reference fixing · USD per EUR,EA|ES|DE|FR|IT|US,FX-01,USD per EUR,D,6,Shared quote; not executable
+ONS.D7G7,uk-cpi,Office for National Statistics,Consumer inflation · all items,GB,INF-01,% year on year,M,95,Atlas measure
+ONS.GB7S,uk-ppi,Office for National Statistics,Manufactured output prices · excluding duty,GB,,"index, 2015=100",M,95,Input level
+ONS.EW6T,uk-steel,Office for National Statistics,Producer price · basic steel and ferro-alloys,GB,COM-06,"index, 2015=100",M,95,Atlas measure
+ONS.EVUD,uk-wood,Office for National Statistics,Producer price · sawn and planed wood,GB,COM-10,"index, 2015=100",M,95,Atlas measure
+ONS.EVXG,uk-fertiliser,Office for National Statistics,Producer price · fertilisers and nitrogen compounds,GB,COM-11,"index, 2015=100",M,95,Atlas measure
+ONS.IHYQ,uk-gdp,Office for National Statistics,Real GDP growth · seasonally adjusted,GB,ACT-01,% quarter on quarter,Q,200,Atlas measure
+ONS.GB7S.YOY,uk-ppi,Office for National Statistics,Manufactured output price inflation · excluding duty,GB,INF-03,% year on year,M,95,Calculated from levels exactly 12 months apart
+SC.41690973,ca-cpi,Statistics Canada,All-items consumer price index,CA,,"index, 2002=100",M,95,Input level
+SC.803313,ca-inv,Statistics Canada,Manufacturing inventory-to-sales ratio · SA,CA,SUP-05,ratio,M,95,Atlas measure
+SC.1568389346,ca-jobs,Statistics Canada,Job vacancies · all industries,CA,LAB-05,vacancies,Q,220,Atlas measure
+SC.1230995983,ca-prices,Statistics Canada,Industrial product prices · headline,CA,INF-03,"index, Jan 2020=100",M,95,Atlas measure
+SC.1230995994,ca-prices,Statistics Canada,Producer price · lumber and other wood products,CA,COM-10,"index, Jan 2020=100",M,95,Atlas measure
+SC.1230995997,ca-prices,Statistics Canada,Producer price · primary ferrous metals,CA,COM-06,"index, Jan 2020=100",M,95,Atlas measure
+SC.1230996179,ca-prices,Statistics Canada,Producer price · unwrought nickel and alloys,CA,COM-07,"index, Jan 2020=100",M,95,Atlas measure
+SC.1230998150,ca-prices,Statistics Canada,Raw material price · wheat,CA,COM-09,"index, Jan 2020=100",M,95,Atlas measure
+SC.1324952493,ca-prices,Statistics Canada,Producer price · mixed fertilizers,CA,COM-11,"index, Jan 2020=100",M,95,Atlas measure
+SC.1324952502,ca-prices,Statistics Canada,Producer price · diesel fuel,CA,COM-02,"index, Jan 2020=100",M,95,Atlas measure
+SC.CPI.YOY,ca-cpi,Statistics Canada,Consumer inflation · all items,CA,INF-01,% year on year,M,95,"National-source alternative; calculated from index levels, not spliced with OECD"
+BOC.V39079,ca-bank,Bank of Canada,Overnight policy target,CA,MP-01,%,D,8,Direct national source
+BOC.CORRA_TOTAL_VOLUME,ca-bank,Bank of Canada,CORRA-eligible repo volume · before trimming,CA,MON-05,CAD,D,8,Atlas measure
+BOC.ACTUAL,ca-bank,Bank of Canada,Settlement balances in Lynx · subject to replacement,CA,MON-03,CAD millions,D,8,Atlas measure
+BOC.BD.CDN.RRB.DQ.YLD,ca-bank,Bank of Canada,Long-term real return bond yield,CA,YLD-02,%,D,8,Atlas measure
+NYFED.SOFR,ny-sofr,Federal Reserve Bank of New York,Secured Overnight Financing Rate,US,MON-05,%,D,8,"Administered rate, not an executable quote"
+prc_hicp_minr.DE,eu-hicp,Eurostat,HICP inflation · all items,DE,INF-01,% year on year,M,95,Atlas measure
+prc_hicp_minr.EA21,eu-hicp,Eurostat,HICP inflation · all items · EA21,EA,INF-01,% year on year,M,95,Atlas measure
+prc_hicp_minr.ES,eu-hicp,Eurostat,HICP inflation · all items,ES,INF-01,% year on year,M,95,Atlas measure
+prc_hicp_minr.FR,eu-hicp,Eurostat,HICP inflation · all items,FR,INF-01,% year on year,M,95,Atlas measure
+prc_hicp_minr.IT,eu-hicp,Eurostat,HICP inflation · all items,IT,INF-01,% year on year,M,95,Atlas measure
+namq_10_gdp.DE,eu-gdp,Eurostat,Real GDP growth · seasonally and calendar adjusted,DE,ACT-01,% quarter on quarter,Q,200,Atlas measure
+namq_10_gdp.EA21,eu-gdp,Eurostat,Real GDP growth · seasonally and calendar adjusted · EA21,EA,ACT-01,% quarter on quarter,Q,200,Atlas measure
+namq_10_gdp.ES,eu-gdp,Eurostat,Real GDP growth · seasonally and calendar adjusted,ES,ACT-01,% quarter on quarter,Q,200,Atlas measure
+namq_10_gdp.FR,eu-gdp,Eurostat,Real GDP growth · seasonally and calendar adjusted,FR,ACT-01,% quarter on quarter,Q,200,Atlas measure
+namq_10_gdp.IT,eu-gdp,Eurostat,Real GDP growth · seasonally and calendar adjusted,IT,ACT-01,% quarter on quarter,Q,200,Atlas measure
+une_rt_m.DE,eu-jobs,Eurostat,"Unemployment · all persons, seasonally adjusted",DE,LAB-02,% of labour force,M,95,Atlas measure
+une_rt_m.EA21,eu-jobs,Eurostat,"Unemployment · all persons, seasonally adjusted · EA21",EA,LAB-02,% of labour force,M,95,Atlas measure
+une_rt_m.ES,eu-jobs,Eurostat,"Unemployment · all persons, seasonally adjusted",ES,LAB-02,% of labour force,M,95,Atlas measure
+une_rt_m.FR,eu-jobs,Eurostat,"Unemployment · all persons, seasonally adjusted",FR,LAB-02,% of labour force,M,95,Atlas measure
+une_rt_m.IT,eu-jobs,Eurostat,"Unemployment · all persons, seasonally adjusted",IT,LAB-02,% of labour force,M,95,Atlas measure
+bis-eer.ES,bis-eer,BIS,Broad real effective exchange rate,ES,FX-02,"index, 2020=100",M,95,Distributor edition
+bis-eer.DE,bis-eer,BIS,Broad real effective exchange rate,DE,FX-02,"index, 2020=100",M,95,Distributor edition
+bis-eer.FR,bis-eer,BIS,Broad real effective exchange rate,FR,FX-02,"index, 2020=100",M,95,Distributor edition
+bis-eer.IT,bis-eer,BIS,Broad real effective exchange rate,IT,FX-02,"index, 2020=100",M,95,Distributor edition
+bis-eer.GB,bis-eer,BIS,Broad real effective exchange rate,GB,FX-02,"index, 2020=100",M,95,Distributor edition
+bis-eer.US,bis-eer,BIS,Broad real effective exchange rate,US,FX-02,"index, 2020=100",M,95,Distributor edition
+bis-eer.CA,bis-eer,BIS,Broad real effective exchange rate,CA,FX-02,"index, 2020=100",M,95,Distributor edition
+bis-eer.JP,bis-eer,BIS,Broad real effective exchange rate,JP,FX-02,"index, 2020=100",M,95,Distributor edition
+bis-eer.CN,bis-eer,BIS,Broad real effective exchange rate,CN,FX-02,"index, 2020=100",M,95,Distributor edition
+bis-eer.XM,bis-eer,BIS,Broad real effective exchange rate,EA,FX-02,"index, 2020=100",M,95,Distributor edition
+bis-cpi.CN,bis-cpi,BIS,"Consumer inflation · all items, BIS edition",CN,INF-01,% year on year,M,95,Distributor edition
+bis-cpi.US,bis-cpi,BIS,"Consumer inflation · all items, BIS edition",US,INF-01,% year on year,M,95,Distributor edition
+bis-rates.CA,bis-rates,BIS,Central bank policy rate · BIS convention,CA,MP-01,% per annum,D,16,Distributor edition
+bis-rates.CN,bis-rates,BIS,Central bank policy rate · BIS convention,CN,MP-01,% per annum,D,16,Distributor edition
+bis-rates.GB,bis-rates,BIS,Central bank policy rate · BIS convention,GB,MP-01,% per annum,D,16,Distributor edition
+bis-rates.JP,bis-rates,BIS,Central bank policy rate · BIS convention,JP,MP-01,% per annum,D,16,Distributor edition
+bis-rates.US,bis-rates,BIS,Central bank policy rate · BIS convention,US,MP-01,% per annum,D,16,Distributor edition
+bis-rates.XM,bis-rates,BIS,Central bank policy rate · BIS convention,EA|ES|DE|FR|IT,MP-01,% per annum,D,16,Shared euro-area policy; distributor edition
+oecd-cpi.CAN,oecd-cpi,OECD,"Consumer inflation · all items, OECD edition",CA,INF-01,% year on year,M,95,Distributor edition
+oecd-cpi.JPN,oecd-cpi,OECD,"Consumer inflation · all items, OECD edition",JP,INF-01,% year on year,M,95,Distributor edition
+oecd-gdp.CAN,oecd-gdp,OECD,Real GDP growth · seasonally adjusted,CA,ACT-01,% quarter on quarter,Q,200,Distributor edition
+oecd-gdp.CHN,oecd-gdp,OECD,Real GDP growth · seasonally adjusted,CN,ACT-01,% quarter on quarter,Q,200,Distributor edition
+oecd-gdp.JPN,oecd-gdp,OECD,Real GDP growth · seasonally adjusted,JP,ACT-01,% quarter on quarter,Q,200,Distributor edition
+oecd-gdp.USA,oecd-gdp,OECD,Real GDP growth · seasonally adjusted,US,ACT-01,% quarter on quarter,Q,200,Distributor edition
+oecd-jobs.CAN,oecd-jobs,OECD,"Unemployment · age 15+, seasonally adjusted",CA,LAB-02,% of labour force,M,95,Distributor edition
+oecd-jobs.JPN,oecd-jobs,OECD,"Unemployment · age 15+, seasonally adjusted",JP,LAB-02,% of labour force,M,95,Distributor edition
+oecd-jobs.USA,oecd-jobs,OECD,"Unemployment · age 15+, seasonally adjusted",US,LAB-02,% of labour force,M,95,Distributor edition
+BLS.CUUR0000SA0,us-bls,U.S. Bureau of Labor Statistics,"CPI-U · all items, US city average, not seasonally adjusted",US,,"index, 1982–84=100",M,95,Input level
+BLS.CPI.YOY,us-bls,U.S. Bureau of Labor Statistics,Consumer inflation · CPI-U all items,US,INF-01,% year on year,M,95,National-source alternative; calculated from levels
+BLS.LNS14000000,us-bls,U.S. Bureau of Labor Statistics,"Unemployment · civilian labour force, 16+, SA",US,LAB-02,% of labour force,M,95,"National-source alternative, distinct from OECD series"
+FIN.ESP.IRLT,oecd-fin,OECD,Long-term benchmark interest rate,ES,YLD-01,% per annum,M,95,Monthly OECD edition; not a daily executable yield
+FIN.ESP.IR3TIB,oecd-fin,OECD,Three-month interbank indicator,ES,,% per annum,M,95,OECD input; do not carry a discontinued rate
+FIN.ESP.SHARE,oecd-fin,OECD,Broad share-price index,ES,,"index, 2015=100",M,95,"Price-only OECD input, not a reinvested total-return index"
+FIN.ESP.curve,oecd-fin,OECD,Long yield minus 3-month money rate,ES,YLD-03,percentage points,M,95,"Same-month difference, not a traded spread"
+FIN.ESP.vol12,oecd-fin,OECD,Volatility of monthly long-yield changes,ES,YLD-06,basis points,M,95,Sample SD of 12 consecutive monthly changes; not annualized
+FIN.ESP.beta24,oecd-fin,OECD,Share-price sensitivity to long-yield changes,ES,IDX-04,% log price change per pp,M,95,"OLS slope with intercept, 24 consecutive monthly changes; proxy, not an expected return"
+FIN.DEU.IRLT,oecd-fin,OECD,Long-term benchmark interest rate,DE,YLD-01,% per annum,M,95,Monthly OECD edition; not a daily executable yield
+FIN.DEU.IR3TIB,oecd-fin,OECD,Three-month interbank indicator,DE,,% per annum,M,95,OECD input; do not carry a discontinued rate
+FIN.DEU.SHARE,oecd-fin,OECD,Broad share-price index,DE,,"index, 2015=100",M,95,"Price-only OECD input, not a reinvested total-return index"
+FIN.DEU.curve,oecd-fin,OECD,Long yield minus 3-month money rate,DE,YLD-03,percentage points,M,95,"Same-month difference, not a traded spread"
+FIN.DEU.vol12,oecd-fin,OECD,Volatility of monthly long-yield changes,DE,YLD-06,basis points,M,95,Sample SD of 12 consecutive monthly changes; not annualized
+FIN.DEU.beta24,oecd-fin,OECD,Share-price sensitivity to long-yield changes,DE,IDX-04,% log price change per pp,M,95,"OLS slope with intercept, 24 consecutive monthly changes; proxy, not an expected return"
+FIN.FRA.IRLT,oecd-fin,OECD,Long-term benchmark interest rate,FR,YLD-01,% per annum,M,95,Monthly OECD edition; not a daily executable yield
+FIN.FRA.IR3TIB,oecd-fin,OECD,Three-month interbank indicator,FR,,% per annum,M,95,OECD input; do not carry a discontinued rate
+FIN.FRA.SHARE,oecd-fin,OECD,Broad share-price index,FR,,"index, 2015=100",M,95,"Price-only OECD input, not a reinvested total-return index"
+FIN.FRA.curve,oecd-fin,OECD,Long yield minus 3-month money rate,FR,YLD-03,percentage points,M,95,"Same-month difference, not a traded spread"
+FIN.FRA.vol12,oecd-fin,OECD,Volatility of monthly long-yield changes,FR,YLD-06,basis points,M,95,Sample SD of 12 consecutive monthly changes; not annualized
+FIN.FRA.beta24,oecd-fin,OECD,Share-price sensitivity to long-yield changes,FR,IDX-04,% log price change per pp,M,95,"OLS slope with intercept, 24 consecutive monthly changes; proxy, not an expected return"
+FIN.ITA.IRLT,oecd-fin,OECD,Long-term benchmark interest rate,IT,YLD-01,% per annum,M,95,Monthly OECD edition; not a daily executable yield
+FIN.ITA.IR3TIB,oecd-fin,OECD,Three-month interbank indicator,IT,,% per annum,M,95,OECD input; do not carry a discontinued rate
+FIN.ITA.SHARE,oecd-fin,OECD,Broad share-price index,IT,,"index, 2015=100",M,95,"Price-only OECD input, not a reinvested total-return index"
+FIN.ITA.curve,oecd-fin,OECD,Long yield minus 3-month money rate,IT,YLD-03,percentage points,M,95,"Same-month difference, not a traded spread"
+FIN.ITA.vol12,oecd-fin,OECD,Volatility of monthly long-yield changes,IT,YLD-06,basis points,M,95,Sample SD of 12 consecutive monthly changes; not annualized
+FIN.ITA.beta24,oecd-fin,OECD,Share-price sensitivity to long-yield changes,IT,IDX-04,% log price change per pp,M,95,"OLS slope with intercept, 24 consecutive monthly changes; proxy, not an expected return"
+FIN.GBR.IRLT,oecd-fin,OECD,Long-term benchmark interest rate,GB,YLD-01,% per annum,M,95,Monthly OECD edition; not a daily executable yield
+FIN.GBR.IR3TIB,oecd-fin,OECD,Three-month interbank indicator,GB,,% per annum,M,95,OECD input; do not carry a discontinued rate
+FIN.GBR.SHARE,oecd-fin,OECD,Broad share-price index,GB,,"index, 2015=100",M,95,"Price-only OECD input, not a reinvested total-return index"
+FIN.GBR.curve,oecd-fin,OECD,Long yield minus 3-month money rate,GB,YLD-03,percentage points,M,95,"Same-month difference, not a traded spread"
+FIN.GBR.vol12,oecd-fin,OECD,Volatility of monthly long-yield changes,GB,YLD-06,basis points,M,95,Sample SD of 12 consecutive monthly changes; not annualized
+FIN.GBR.beta24,oecd-fin,OECD,Share-price sensitivity to long-yield changes,GB,IDX-04,% log price change per pp,M,95,"OLS slope with intercept, 24 consecutive monthly changes; proxy, not an expected return"
+FIN.GBR.fx3m,oecd-fin,OECD,Three-month forward premium estimate,GB,FX-05,% over three months,M,95,Interest-parity estimate vs USA; not a forward quote; shared for euro members
+FIN.USA.IRLT,oecd-fin,OECD,Long-term benchmark interest rate,US,YLD-01,% per annum,M,95,Monthly OECD edition; not a daily executable yield
+FIN.USA.IR3TIB,oecd-fin,OECD,Three-month interbank indicator,US,,% per annum,M,95,OECD input; do not carry a discontinued rate
+FIN.USA.SHARE,oecd-fin,OECD,Broad share-price index,US,,"index, 2015=100",M,95,"Price-only OECD input, not a reinvested total-return index"
+FIN.USA.curve,oecd-fin,OECD,Long yield minus 3-month money rate,US,YLD-03,percentage points,M,95,"Same-month difference, not a traded spread"
+FIN.USA.vol12,oecd-fin,OECD,Volatility of monthly long-yield changes,US,YLD-06,basis points,M,95,Sample SD of 12 consecutive monthly changes; not annualized
+FIN.USA.beta24,oecd-fin,OECD,Share-price sensitivity to long-yield changes,US,IDX-04,% log price change per pp,M,95,"OLS slope with intercept, 24 consecutive monthly changes; proxy, not an expected return"
+FIN.USA.fx3m,oecd-fin,OECD,Three-month forward premium estimate,US,FX-05,% over three months,M,95,Interest-parity estimate vs EA20; not a forward quote; shared for euro members
+FIN.CAN.IRLT,oecd-fin,OECD,Long-term benchmark interest rate,CA,YLD-01,% per annum,M,95,Monthly OECD edition; not a daily executable yield
+FIN.CAN.IR3TIB,oecd-fin,OECD,Three-month interbank indicator,CA,,% per annum,M,95,OECD input; do not carry a discontinued rate
+FIN.CAN.SHARE,oecd-fin,OECD,Broad share-price index,CA,,"index, 2015=100",M,95,"Price-only OECD input, not a reinvested total-return index"
+FIN.CAN.curve,oecd-fin,OECD,Long yield minus 3-month money rate,CA,YLD-03,percentage points,M,95,"Same-month difference, not a traded spread"
+FIN.CAN.vol12,oecd-fin,OECD,Volatility of monthly long-yield changes,CA,YLD-06,basis points,M,95,Sample SD of 12 consecutive monthly changes; not annualized
+FIN.CAN.beta24,oecd-fin,OECD,Share-price sensitivity to long-yield changes,CA,IDX-04,% log price change per pp,M,95,"OLS slope with intercept, 24 consecutive monthly changes; proxy, not an expected return"
+FIN.CAN.fx3m,oecd-fin,OECD,Three-month forward premium estimate,CA,FX-05,% over three months,M,95,Interest-parity estimate vs USA; not a forward quote; shared for euro members
+FIN.JPN.IRLT,oecd-fin,OECD,Long-term benchmark interest rate,JP,YLD-01,% per annum,M,95,Monthly OECD edition; not a daily executable yield
+FIN.JPN.IR3TIB,oecd-fin,OECD,Three-month interbank indicator,JP,,% per annum,M,95,OECD input; do not carry a discontinued rate
+FIN.JPN.SHARE,oecd-fin,OECD,Broad share-price index,JP,,"index, 2015=100",M,95,"Price-only OECD input, not a reinvested total-return index"
+FIN.JPN.curve,oecd-fin,OECD,Long yield minus 3-month money rate,JP,YLD-03,percentage points,M,95,"Same-month difference, not a traded spread"
+FIN.JPN.vol12,oecd-fin,OECD,Volatility of monthly long-yield changes,JP,YLD-06,basis points,M,95,Sample SD of 12 consecutive monthly changes; not annualized
+FIN.JPN.beta24,oecd-fin,OECD,Share-price sensitivity to long-yield changes,JP,IDX-04,% log price change per pp,M,95,"OLS slope with intercept, 24 consecutive monthly changes; proxy, not an expected return"
+FIN.JPN.fx3m,oecd-fin,OECD,Three-month forward premium estimate,JP,FX-05,% over three months,M,95,Interest-parity estimate vs USA; not a forward quote; shared for euro members
+FIN.CHN.IRLT,oecd-fin,OECD,Long-term benchmark interest rate,CN,YLD-01,% per annum,M,95,Monthly OECD edition; not a daily executable yield
+FIN.CHN.IR3TIB,oecd-fin,OECD,Three-month interbank indicator,CN,,% per annum,M,95,OECD input; do not carry a discontinued rate
+FIN.CHN.SHARE,oecd-fin,OECD,Broad share-price index,CN,,"index, 2015=100",M,95,"Price-only OECD input, not a reinvested total-return index"
+FIN.CHN.curve,oecd-fin,OECD,Long yield minus 3-month money rate,CN,YLD-03,percentage points,M,95,"Same-month difference, not a traded spread"
+FIN.CHN.vol12,oecd-fin,OECD,Volatility of monthly long-yield changes,CN,YLD-06,basis points,M,95,Sample SD of 12 consecutive monthly changes; not annualized
+FIN.CHN.beta24,oecd-fin,OECD,Share-price sensitivity to long-yield changes,CN,IDX-04,% log price change per pp,M,95,"OLS slope with intercept, 24 consecutive monthly changes; proxy, not an expected return"
+FIN.CHN.fx3m,oecd-fin,OECD,Three-month forward premium estimate,CN,FX-05,% over three months,M,95,Interest-parity estimate vs USA; not a forward quote; shared for euro members
+FIN.EA20.IRLT,oecd-fin,OECD,Long-term benchmark interest rate · EA20,EA,YLD-01,% per annum,M,95,Monthly OECD edition; not a daily executable yield
+FIN.EA20.IR3TIB,oecd-fin,OECD,Three-month interbank indicator · EA20,EA,,% per annum,M,95,OECD input; do not carry a discontinued rate
+FIN.EA20.SHARE,oecd-fin,OECD,Broad share-price index · EA20,EA,,"index, 2015=100",M,95,"Price-only OECD input, not a reinvested total-return index"
+FIN.EA20.curve,oecd-fin,OECD,Long yield minus 3-month money rate · EA20,EA,YLD-03,percentage points,M,95,"Same-month difference, not a traded spread"
+FIN.EA20.vol12,oecd-fin,OECD,Volatility of monthly long-yield changes · EA20,EA,YLD-06,basis points,M,95,Sample SD of 12 consecutive monthly changes; not annualized
+FIN.EA20.beta24,oecd-fin,OECD,Share-price sensitivity to long-yield changes · EA20,EA,IDX-04,% log price change per pp,M,95,"OLS slope with intercept, 24 consecutive monthly changes; proxy, not an expected return"
+FIN.EA20.fx3m,oecd-fin,OECD,Three-month forward premium estimate · EA20,EA|ES|DE|FR|IT,FX-05,% over three months,M,95,Interest-parity estimate vs USA; not a forward quote; shared for euro members
+ECB.DAILY.USD,ecb-daily-fx,ECB,EUR/USD daily reference rate,US,FX-01,USD per EUR,D,8,Daily ECB reference rate; not an executable quote
+ECB.DAILY.GBP,ecb-daily-fx,ECB,EUR/GBP daily reference rate,GB,FX-01,GBP per EUR,D,8,Daily ECB reference rate; not an executable quote
+ECB.DAILY.JPY,ecb-daily-fx,ECB,EUR/JPY daily reference rate,JP,FX-01,JPY per EUR,D,8,Daily ECB reference rate; not an executable quote
+ECB.DAILY.CAD,ecb-daily-fx,ECB,EUR/CAD daily reference rate,CA,FX-01,CAD per EUR,D,8,Daily ECB reference rate; not an executable quote
+ECB.DAILY.CNY,ecb-daily-fx,ECB,EUR/CNY daily reference rate,CN,FX-01,CNY per EUR,D,8,Daily ECB reference rate; not an executable quote
+ECB.DAILY.AUD,ecb-daily-fx,ECB,EUR/AUD daily reference rate,AU,FX-01,AUD per EUR,D,8,Daily ECB reference rate; not an executable quote
+ECB.DAILY.CHF,ecb-daily-fx,ECB,EUR/CHF daily reference rate,CH,FX-01,CHF per EUR,D,8,Daily ECB reference rate; not an executable quote
+ECB.DAILY.SEK,ecb-daily-fx,ECB,EUR/SEK daily reference rate,SE,FX-01,SEK per EUR,D,8,Daily ECB reference rate; not an executable quote
+ECB.DAILY.NOK,ecb-daily-fx,ECB,EUR/NOK daily reference rate,NO,FX-01,NOK per EUR,D,8,Daily ECB reference rate; not an executable quote
+ECB.DAILY.MXN,ecb-daily-fx,ECB,EUR/MXN daily reference rate,MX,FX-01,MXN per EUR,D,8,Daily ECB reference rate; not an executable quote
+ECB.DAILY.BRL,ecb-daily-fx,ECB,EUR/BRL daily reference rate,BR,FX-01,BRL per EUR,D,8,Daily ECB reference rate; not an executable quote
+ECB.DAILY.KRW,ecb-daily-fx,ECB,EUR/KRW daily reference rate,KR,FX-01,KRW per EUR,D,8,Daily ECB reference rate; not an executable quote
+UST.DAILY.2Y,us-treasury-daily,US Treasury,US 2-Year Treasury daily par yield,US,YLD-02,% per annum,D,8,Daily US Treasury par yield
+UST.DAILY.10Y,us-treasury-daily,US Treasury,US 10-Year Treasury daily par yield,US,YLD-01,% per annum,D,8,Daily US Treasury par yield
+UST.DAILY.10Y2Y,us-treasury-daily,US Treasury,US 10Y minus 2Y daily yield spread,US,YLD-03,percentage points,D,8,Daily 10Y-2Y Treasury spread

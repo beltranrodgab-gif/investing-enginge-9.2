@@ -1,0 +1,27 @@
+﻿key,publisher,title,minutes,min_minutes,group
+ecb,European Central Bank,Euro reference fixings,30,15,Markets
+uk-cpi,Office for National Statistics,Consumer inflation · all items,60,30,Economy
+uk-ppi,Office for National Statistics,Manufactured output prices · excluding duty,60,30,Economy
+uk-steel,Office for National Statistics,Producer price · basic steel and ferro-alloys,60,30,Economy
+uk-wood,Office for National Statistics,Producer price · sawn and planed wood,60,30,Economy
+uk-fertiliser,Office for National Statistics,Producer price · fertilisers and nitrogen compounds,60,30,Economy
+uk-gdp,Office for National Statistics,Real GDP growth · seasonally adjusted,60,30,Economy
+ca-cpi,Statistics Canada,Consumer prices,60,30,Economy
+ca-inv,Statistics Canada,Manufacturing inventories,60,30,Economy
+ca-jobs,Statistics Canada,Quarterly job vacancies,60,30,Economy
+ca-prices,Statistics Canada,Industrial and raw-material prices,60,30,Economy
+ca-bank,Bank of Canada,"Policy, repo volume, balances & bond yield",30,15,Markets
+ny-sofr,Federal Reserve Bank of New York,Secured Overnight Financing Rate,30,15,Markets
+eu-hicp,Eurostat,HICP inflation · all items,60,30,Economy
+eu-gdp,Eurostat,Real GDP growth · seasonally and calendar adjusted,60,30,Economy
+eu-jobs,Eurostat,"Unemployment · all persons, seasonally adjusted",60,30,Economy
+bis-eer,BIS,Broad real effective exchange rate,120,60,Markets
+bis-cpi,BIS,"Consumer inflation · all items, BIS edition",120,60,Economy
+bis-rates,BIS,Central bank policy rate · BIS convention,120,60,Markets
+oecd-cpi,OECD,"Consumer inflation · all items, OECD edition",120,60,Economy
+oecd-gdp,OECD,Real GDP growth · seasonally adjusted,120,60,Economy
+oecd-jobs,OECD,"Unemployment · age 15+, seasonally adjusted",120,60,Economy
+us-bls,U.S. Bureau of Labor Statistics,Consumer prices & unemployment,360,360,Economy
+oecd-fin,OECD,"Monthly yields, rate spreads and equity–yield sensitivity",120,60,Markets
+ecb-daily-fx,ECB,Daily ECB reference exchange rates (90-day rolling),30,7,Markets
+us-treasury-daily,US Treasury,Daily US Treasury par yield curve rates,60,7,Markets
