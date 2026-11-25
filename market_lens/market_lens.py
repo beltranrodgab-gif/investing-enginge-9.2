@@ -251,13 +251,14 @@ def main():
     guard(prices,'no usable prices were returned for '+', '.join(g.symbols))
    from alpha_engine import run_alpha_step
    res=run_alpha_step(home/'latest_live.csv' if (home/'latest_live.csv').is_file() else home/'latest.csv',vols,at=None,prev_weights=state['weights'],target_vol=g.target_vol,max_turnover=g.max_turnover)
-   failed_closed=not res.get('weights')
-   step=pt.step_paper_book(res.get('weights') or {},prices,state['weights'],nav=state['nav'],cost_bps=g.cost_bps,max_turnover=g.max_turnover,regime=res.get('regime'),emergency=failed_closed)
+   outage=bool(res.get('data_outage'))
+   # Marks from the previous run make every move since then count, even if runs were skipped.
+   step=pt.step_paper_book(res.get('weights') or {},prices,state['weights'],nav=state['nav'],cost_bps=g.cost_bps,max_turnover=g.max_turnover,regime=res.get('regime'),last_marks=state.get('marks'),data_outage=outage)
    prev_nav=state['nav']
-   state={'nav':step['nav_after_cost'],'weights':step['weights'],'cash':step['cash'],'periods':state['periods']+1,'initial_nav':initial,'started_utc':state.get('started_utc') or now(),'last_utc':now(),'history':(state.get('history') or [])+[{'utc':now(),'nav':step['nav_after_cost'],'period':state['periods']+1}],'active_returns':(state.get('active_returns') or [])+[step['nav_after_cost']/prev_nav-1.0]}
+   state={'nav':step['nav_after_cost'],'weights':step['weights'],'cash':step['cash'],'marks':{**(state.get('marks') or {}),**step.get('marks',{})},'periods':state['periods']+1,'initial_nav':initial,'started_utc':state.get('started_utc') or now(),'last_utc':now(),'history':(state.get('history') or [])+[{'utc':now(),'nav':step['nav_after_cost'],'period':state['periods']+1}],'active_returns':(state.get('active_returns') or [])+[step['nav_after_cost']/prev_nav-1.0]}
    if not pa.save(apath,state): raise RuntimeError('could not save the paper account to '+str(apath))
    out=dict(step)
-   if failed_closed: out['reason']=res.get('reason') or 'no usable signal'
+   if outage: out['reason']=res.get('reason') or 'no usable signal'
    out['nav']=round(state['nav'],4)
    out['period']=state['periods']
    out['account']=str(apath)
@@ -281,13 +282,13 @@ def main():
      plan=None
      if getattr(g,'plan',False):
       from portfolio_optimizer import build_plan
-      plan=build_plan(account_value=g.account,asset_vols=vols or None,regime_scale=decision.get('risk_scale',1.0),regime=decision.get('regime','uncertain'))
+      plan=build_plan(account_value=g.account,asset_vols=vols or None,regime_scale=decision.get('risk_scale',1.0),regime=decision.get('regime','uncertain'),rf=decision.get('risk_free_rate') or 0.04)
      out=dict(decision);out['supervisor']=supervisor_view(status(c,home),decision,plan,prev)
      if plan:out['plan']=plan['plan'];out['operations']=plan['operations'];out['frontier']=plan['frontier']
     j(out)
    else:
     from portfolio_optimizer import build_plan
-    plan=build_plan(account_value=g.account,asset_vols=vols or None,regime_scale=g.regime_scale if g.regime_scale!=1.0 else decision.get('risk_scale',1.0),goal_multiple=g.goal,years=g.years,max_drawdown=g.max_dd,regime=decision.get('regime','uncertain'))
+    plan=build_plan(account_value=g.account,asset_vols=vols or None,regime_scale=g.regime_scale if g.regime_scale!=1.0 else decision.get('risk_scale',1.0),goal_multiple=g.goal,years=g.years,max_drawdown=g.max_dd,regime=decision.get('regime','uncertain'),rf=decision.get('risk_free_rate') or 0.04)
     view=supervisor_view(status(c,home),decision,plan,prev,max_drawdown=g.max_dd)
     # The regime was only nested under ``decision``, which made the top-level view inconsistent
     # with ``/api/jarvis``, where it is a first-class field.

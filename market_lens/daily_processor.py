@@ -7,17 +7,12 @@ import json
 from decimal import Decimal
 from pathlib import Path
 from signal_filter import filter_signals, classify_macro_quadrant
-from alpha_engine import detect_regime, allocate, apply_turnover_budget, drift_check
+from alpha_engine import detect_regime, allocate, apply_turnover_budget, drift_check, outage_target
 from macro_alerts import macro_diffusion
 
 
-ALL_WEATHER_MAP = {
-    'rising_growth_falling_inflation': {'EQUITY': 0.60, 'TREASURY': 0.25, 'GOLD': 0.10, 'TBILL': 0.05},
-    'rising_growth_rising_inflation':  {'EQUITY': 0.35, 'GOLD': 0.30, 'COMMODITY': 0.25, 'TBILL': 0.10},
-    'falling_growth_rising_inflation': {'GOLD': 0.35, 'COMMODITY': 0.25, 'TBILL': 0.30, 'TREASURY': 0.10},
-    'falling_growth_falling_inflation':{'TREASURY': 0.50, 'GOLD': 0.25, 'TBILL': 0.25},
-    'unknown':                         {'TBILL': 1.00},
-}
+# The quadrant table lives in ``asset_classes`` so every module uses one allocation.
+from asset_classes import ALL_WEATHER_MAP  # noqa: E402  (re-exported)
 
 
 def all_weather_allocation(quadrant, risk_scale=1.0):
@@ -62,9 +57,12 @@ def run_processor(csv_path, asset_vols, prev_weights=None, growth_z=None, inflat
 
     # Budget, not kill switch: a switch larger than the budget is taken in instalments.
     if not filtered:
-        warnings = ['no fresh screened signals: holding zero risky exposure']
-        final_w, turnover, partial = {}, 0.0, False
-        budget = drift_check(0.0, max_turnover=max_turnover, missing_ratio=1.0)
+        # Data outage: step toward half of the current book inside the budget (see
+        # ``alpha_engine.outage_target``) instead of liquidating everything for free.
+        final_w, turnover, partial = apply_turnover_budget(outage_target(prev_weights), prev_weights,
+                                                           max_turnover)
+        warnings = ['no fresh screened signals: data outage, stepping toward half of current risk']
+        budget = drift_check(turnover, max_turnover=max_turnover, missing_ratio=1.0)
     else:
         final_w, turnover, partial = apply_turnover_budget(wanted, prev_weights, max_turnover)
         budget = drift_check(turnover, max_turnover=max_turnover, missing_ratio=0.0)
@@ -85,6 +83,7 @@ def run_processor(csv_path, asset_vols, prev_weights=None, growth_z=None, inflat
         'cash': round(max(0.0, 1.0 - sum(final_w.values())), 6),
         'all_weather_weights': all_weather_allocation(quadrant, regime['risk_scale']) if filtered else {},
         'drift_ok': budget['ok'],
+        'data_outage': not filtered,
         'warnings': warnings,
         'filtered_count': len(filtered),
     }
@@ -133,3 +132,43 @@ def bayesian_regime_update(prior_probs, likelihoods, floor=0.05):
               for r in set(prior_probs) | set(likelihoods)}
     total = sum(unnorm.values())
     return {r: round(v / total, 6) for r, v in unnorm.items()}
+
+
+def drawdown_state(equity_curve, max_dd=0.10, peak_window=252, reentry_window=50):
+    """Drawdown measured against a *rolling* peak, with a trend-based re-entry rule.
+
+    The old guard compared NAV with its all-time high and halved risk whenever it was 10% below.
+    At half risk, getting back within 10% of that high takes far longer, so the guard could stay
+    on indefinitely. Now:
+
+    * the peak is the highest NAV within the last ``peak_window`` observations, so a very old high
+      eventually stops defining the drawdown;
+    * once breached, the guard switches off again (``reentered``) when NAV is back above its
+      ``reentry_window``-observation moving average, i.e. a recovery is under way.
+
+    Returns ``{'drawdown', 'peak', 'breached', 'reentered', 'triggered'}``; ``triggered`` is the
+    one to act on. Non-finite or non-positive points are skipped.
+    """
+    curve = []
+    for x in equity_curve or []:
+        try:
+            v = float(x)
+        except (TypeError, ValueError):
+            continue
+        if v == v and abs(v) != float('inf') and v > 0:
+            curve.append(v)
+    if not curve:
+        return {'drawdown': None, 'peak': None, 'breached': False, 'reentered': False,
+                'triggered': False}
+    window = curve[-max(1, int(peak_window)):]
+    peak = max(window)
+    cur = curve[-1]
+    dd = max(0.0, 1.0 - cur / peak)
+    breached = dd >= float(max_dd)
+    reentered = False
+    n = max(2, int(reentry_window))
+    if breached and len(curve) >= n:
+        sma = sum(curve[-n:]) / n
+        reentered = cur > sma
+    return {'drawdown': round(dd, 6), 'peak': peak, 'breached': breached,
+            'reentered': reentered, 'triggered': breached and not reentered}

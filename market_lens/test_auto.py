@@ -106,7 +106,8 @@ class Parsers(unittest.TestCase):
   from decimal import Decimal
   r = ae.detect_regime({'UST.DAILY.10Y2Y': Decimal('-0.25'), 'NYFED.SOFR': Decimal('4.5')})
   self.assertEqual(r['regime'], 'defensive_inverted_curve')
-  self.assertEqual(r['risk_scale'], 0.5)
+  # An inversion is an early warning, not the danger phase: risk is trimmed, not halved.
+  self.assertEqual(r['risk_scale'], 0.75)
   w = ae.inverse_vol_weights({'SPY': 0.15, 'TLT': 0.12, 'GLD': 0.14}, risk_scale=0.5)
   self.assertTrue(abs(sum(w.values()) - 0.5) < 1e-6)
 
@@ -485,7 +486,9 @@ class Regressions(unittest.TestCase):
    # +10% on a 50% book is +5 of NAV; the old code could only ever subtract cost.
    self.assertAlmostEqual(res['market_return_applied'], 0.05, places=6)
    self.assertGreaterEqual(res['nav_after_cost'], 100.0)
-   self.assertEqual(res['weights'], {})
+   # Missing export = data outage: step to half of the drifted book, not a full liquidation.
+   self.assertTrue(res['data_outage'])
+   self.assertAlmostEqual(res['weights']['SPY'], 0.55 / 1.05 / 2, places=6)
 
  def test_quality_accepts_explicit_normal_for_eurostat(self):
   import reliability as rel, sources as s
@@ -510,7 +513,11 @@ class Regressions(unittest.TestCase):
   from pathlib import Path
   with tempfile.TemporaryDirectory() as td:
    rec = dp.run_processor(Path(td) / 'nope.csv', {'SPY': 0.15, 'TLT': 0.12}, prev_weights={'SPY': 0.9, 'TLT': 0.1})
-   self.assertEqual(rec['weights'], {})            # no signals -> no risky exposure
+   # No signals -> data outage: halve the book inside the budget instead of selling it all.
+   self.assertTrue(rec['data_outage'])
+   self.assertAlmostEqual(rec['weights']['SPY'], 0.45, places=6)
+   self.assertAlmostEqual(rec['weights']['TLT'], 0.05, places=6)
+   self.assertLessEqual(rec['turnover'], 0.50 + 1e-9)
    self.assertTrue(rec['warnings'])
   import alpha_engine as ae
   self.assertTrue(ae.drift_check(0.8)['ok'] is False)
@@ -979,8 +986,12 @@ class PaperAccount(unittest.TestCase):
    missing = Path(td) / 'none.csv'
    r = pt.step_paper_portfolio(missing, {'SPY': [100, 101]}, {'SPY': 0.5}, nav=1000.0,
                                cost_bps=0, max_turnover=0.10)
-  self.assertTrue(r['emergency'])
-  self.assertEqual(r['weights'], {})
+  # A data outage is no longer an unbudgeted emergency sale: it is a labelled, budgeted step
+  # toward half of the current exposure.
+  self.assertFalse(r['emergency'])
+  self.assertTrue(r['data_outage'])
+  self.assertLessEqual(r['turnover'], 0.10 + 1e-9)
+  self.assertGreater(r['weights']['SPY'], 0.0)
   self.assertIn('reason', r)
 
  def test_account_persists_and_rejects_corrupt_state(self):
@@ -2258,6 +2269,238 @@ class StrategyEngineAudit(unittest.TestCase):
   self.assertAlmostEqual(sum(m['next_probabilities'].values()), 1.0, places=4)
   for row in m['transition_matrix'].values():
    self.assertAlmostEqual(sum(row.values()), 1.0, places=4)
+
+
+class ReviewFixes(unittest.TestCase):
+ """One guard per item of the strategy review. Each fails on the pre-fix behaviour."""
+
+ # 1. sign of unemployment
+ def test_rising_unemployment_lowers_growth(self):
+  import signal_filter as sf
+  rising = [3.5 + 0.05 * i for i in range(30)] + [6.0]
+  z = sf.macro_z_scores({'BLS.LNS14000000': rising})['growth_z']
+  self.assertLess(z, -3.0)  # pre-fix: +3.5, i.e. "booming"
+
+ # 2. index levels become rates
+ def test_steady_price_index_is_not_read_as_hot_inflation(self):
+  import signal_filter as sf
+  idx = [100 * (1.002 ** i) for i in range(80)]
+  out = sf.macro_z_scores({'SC.1230995983': idx})
+  self.assertIn('SC.1230995983', out['converted_to_yoy'])
+  self.assertLess(abs(out['inflation_z']), 0.5)  # pre-fix: +1.78
+  # A genuine acceleration in the rate still shows up.
+  acc = idx[:-12] + [idx[-13] * (1.006 ** k) for k in range(1, 13)]
+  self.assertGreater(sf.macro_z_scores({'SC.1230995983': acc})['inflation_z'], 1.0)
+
+ # 10. region weighting
+ def test_euro_members_do_not_outvote_the_us(self):
+  import signal_filter as sf
+  def wiggle(xs):
+   return [x + 0.01 * (i % 3) for i, x in enumerate(xs)]
+  euro_weak = wiggle([5.0] * 30 + [7.0])   # unemployment jumps in every euro series
+  us_strong = wiggle([5.0] * 30 + [3.0])   # unemployment falls hard in the US
+  hist = {sid: euro_weak for sid in ('une_rt_m.DE', 'une_rt_m.FR', 'une_rt_m.IT',
+                                     'une_rt_m.ES', 'une_rt_m.EA21')}
+  hist['BLS.LNS14000000'] = us_strong
+  out = sf.macro_z_scores(hist)
+  # Five euro series collapse into one region, and the US carries more GDP weight.
+  self.assertEqual(set(out['growth_region_weights']), {'EA', 'US'})
+  self.assertGreater(out['growth_region_weights']['US'], out['growth_region_weights']['EA'])
+  self.assertGreater(out['growth_z'], 0.0)  # one vote per series made this strongly negative
+
+ # 3. shrinkage direction
+ def test_shrinkage_keeps_most_of_the_correlation(self):
+  import efficient_frontier as ef
+  m = ef.shrink_to_diagonal([[1.0, 0.9], [0.9, 1.0]], 0.10)
+  self.assertAlmostEqual(m[0][1], 0.81, places=9)  # pre-fix: 0.09
+
+ # 5. correlated sizing
+ def test_vol_target_holds_for_a_correlated_book(self):
+  import alpha_engine as ae
+  vols = {'SPY': 0.16, 'QQQ': 0.22, 'VEA': 0.18}
+  plan = ae.allocate(vols, target_vol=0.10)
+  self.assertAlmostEqual(plan['vol_estimate'], 0.10, places=6)
+  old = ae.allocate(vols, target_vol=0.10, corr=0.0)
+  self.assertLess(sum(plan['weights'].values()), sum(old['weights'].values()))
+  # Unknown tickers are assumed correlated (0.5), not independent.
+  self.assertGreater(ae.portfolio_vol({'X': 0.5, 'Y': 0.5}, {'X': 0.2, 'Y': 0.2}),
+                     ae.portfolio_vol({'X': 0.5, 'Y': 0.5}, {'X': 0.2, 'Y': 0.2}, corr=0.0))
+
+ # 11. volatility estimate
+ def test_blended_vol_reacts_to_a_shock_and_ignores_brief_calm(self):
+  import asset_classes as ac, random
+  rng = random.Random(3)
+  px = [100.0]
+  for _ in range(240):
+   px.append(px[-1] * (1 + rng.gauss(0, 0.01)))
+  base = ac.blended_vol(px)
+  shocked = px + [px[-1] * 0.93, px[-1] * 0.88, px[-1] * 0.92]
+  self.assertGreater(ac.blended_vol(shocked), base * 1.3)
+  quiet = px + [px[-1]] * 20
+  self.assertGreater(ac.blended_vol(quiet), 0.5 * base)  # a 20-day-only estimate would be ~0
+
+ # 14. Monte Carlo resolution and tails
+ def test_monte_carlo_steps_scale_with_horizon_and_tails_matter(self):
+  import efficient_frontier as ef
+  r = ef.simulate_paths(0.07, 0.16, years=3, paths=1000)
+  self.assertEqual(r['steps'], 156)
+  normal = ef.simulate_paths(0.07, 0.16, years=3, paths=2000, steps_per_year=26)
+  fat = ef.simulate_paths(0.07, 0.16, years=3, paths=2000, steps_per_year=26, df=4)
+  self.assertGreater(fat['max_drawdown']['p95'], normal['max_drawdown']['p95'] * 0.95)
+  self.assertIn('student_t', fat['tails'])
+
+ # 4. paper marking across skipped bars
+ def test_paper_marks_from_the_last_stored_price(self):
+  import paper_trader as pt
+  r = pt.step_paper_book({'SPY': 1.0}, {'SPY': [100, 80, 79]}, {'SPY': 1.0}, nav=100,
+                         cost_bps=0, last_marks={'SPY': 100})
+  self.assertAlmostEqual(r['nav_after_market'], 79.0, places=6)  # pre-fix: 98.75
+  self.assertEqual(r['mark_basis'], {'SPY': 'since_last_mark'})
+  self.assertEqual(r['marks'], {'SPY': 79.0})
+
+ def test_paper_account_persists_marks(self):
+  import paper_account as pa, tempfile
+  from pathlib import Path
+  with tempfile.TemporaryDirectory() as td:
+   path = Path(td) / 'a.json'
+   pa.save(path, {'nav': 100.0, 'weights': {'SPY': 0.5}, 'marks': {'SPY': 412.5}})
+   self.assertEqual(pa.load(path)['marks'], {'SPY': 412.5})
+
+ # 6. outage
+ def test_empty_target_is_budgeted_not_a_free_liquidation(self):
+  import alpha_engine as ae
+  moved, t, partial = ae.apply_turnover_budget({}, {'SPY': 0.6}, 0.5)
+  self.assertTrue(partial)
+  self.assertAlmostEqual(t, 0.5, places=9)       # pre-fix: 0.0
+  self.assertAlmostEqual(moved['SPY'], 0.1, places=9)  # pre-fix: {}
+
+ def test_decide_on_an_outage_steps_to_half_the_book(self):
+  import tempfile, store as h, strategy_engine as se
+  from pathlib import Path
+  with tempfile.TemporaryDirectory() as td:
+   c = h.db(Path(td), True)
+   try:
+    d = se.decide(c, None, {'SPY': 0.16}, prev_weights={'SPY': 0.6})
+   finally:
+    c.close()
+  self.assertTrue(d['data_outage'])
+  self.assertAlmostEqual(d['booked_weights']['SPY'], 0.3, places=9)
+  self.assertAlmostEqual(d['turnover'], 0.3, places=9)
+  self.assertAlmostEqual(d['turnover_one_way'], 0.15, places=9)
+
+ # 15. drawdown guard re-entry and rolling peak
+ def test_drawdown_guard_reenters_on_recovery_and_forgets_old_peaks(self):
+  import daily_processor as dp
+  fall = [100.0] * 60 + [100 - i for i in range(1, 16)]          # -15%, still falling
+  self.assertTrue(dp.drawdown_state(fall)['triggered'])
+  recover = fall + [85.0] * 50 + [86.0, 87.0, 88.0, 89.0]         # 11% down, but above its trend
+  st = dp.drawdown_state(recover)
+  self.assertTrue(st['breached'])
+  self.assertFalse(st['triggered'])
+  old_peak = [200.0] + [100.0] * 300
+  self.assertFalse(dp.drawdown_state(old_peak)['breached'])       # all-time-high rule: 50% DD
+
+ # 9. regime dynamics
+ def test_regime_uses_curve_and_funding_history(self):
+  import alpha_engine as ae
+  sig = {'UST.DAILY.10Y2Y': 0.30, 'NYFED.SOFR': 4.0}
+  self.assertEqual(ae.detect_regime(sig)['regime'], 'normal_expansion')
+  r = ae.detect_regime(sig, curve_history=[-0.8, -0.5, -0.1, 0.1, 0.3])
+  self.assertEqual(r['regime'], 'post_inversion_steepening')
+  self.assertEqual(r['risk_scale'], 0.5)
+  r = ae.detect_regime(sig, sofr_history=[2.5] * 70 + [4.0] * 60)
+  self.assertEqual(r['regime'], 'tight_liquidity')
+  # High but stable SOFR with history is not a tightening.
+  r = ae.detect_regime({'UST.DAILY.10Y2Y': 0.3, 'NYFED.SOFR': 5.8}, sofr_history=[5.8] * 130)
+  self.assertEqual(r['regime'], 'normal_expansion')
+  import jarvis_supervisor as js
+  self.assertIn('post_inversion_steepening', js.REGIME_RISK)
+
+ # 7. the quadrant moves the weights
+ def test_quadrant_tilts_the_allocation(self):
+  import alpha_engine as ae, asset_classes as ac
+  vols = {'SPY': 0.16, 'TLT': 0.13, 'GLD': 0.15}
+  neutral = ae.allocate(vols, target_vol=1.0)['weights']
+  t = ac.quadrant_tilts(vols, 'falling_growth_falling_inflation', 0.5)
+  tilted = ae.allocate(vols, target_vol=1.0, tilts=t)['weights']
+  self.assertGreater(tilted['TLT'] / tilted['SPY'], neutral['TLT'] / neutral['SPY'])
+  self.assertEqual(ac.quadrant_tilts(vols, 'unknown'), {'SPY': 1.0, 'TLT': 1.0, 'GLD': 1.0})
+  trend = ae.trend_tilts({'SPY': [100 - i * 0.1 for i in range(200)], 'TLT': [100 + i * 0.1 for i in range(200)]})
+  self.assertEqual(trend, {'SPY': 0.5, 'TLT': 1.0})
+
+ # 8. one allocation table
+ def test_single_quadrant_table(self):
+  import stock_selector as ss, daily_processor as dp, asset_classes as ac
+  self.assertIs(dp.ALL_WEATHER_MAP, ac.ALL_WEATHER_MAP)
+  w = ss.dalio_quadrant_weights(1.0, -1.0)['weights']
+  t = ac.ALL_WEATHER_MAP['rising_growth_falling_inflation']
+  self.assertEqual(w['equities'], t['EQUITY'])
+  self.assertEqual(w['bonds'], t['TREASURY'])
+  self.assertAlmostEqual(sum(w.values()), 1.0, places=9)
+
+ # 12. no goal chasing, live risk-free rate
+ def test_plan_does_not_chase_an_unrealistic_goal(self):
+  import portfolio_optimizer as po
+  out = po.build_plan(account_value=10000.0, goal_multiple=3.0, years=3.0, max_drawdown=0.5)
+  ch = out['choice']
+  self.assertIn('goal unlikely', ch['warning'])
+  vols = [p['volatility'] for p in out['frontier']['points']]
+  self.assertLess(ch['chosen']['volatility'], max(vols))
+
+ def test_priors_follow_the_live_cash_rate(self):
+  import portfolio_optimizer as po
+  low = {o['id']: o['mu'] for o in po.operation_inputs(rf=0.02)}
+  high = {o['id']: o['mu'] for o in po.operation_inputs(rf=0.05)}
+  self.assertAlmostEqual(high['overnight_cash'] - low['overnight_cash'], 0.03, places=6)
+
+ # Packaging: the auto-start runtime copies only CORE, so every local import must be in it.
+ def test_runtime_core_includes_every_local_import(self):
+  import ast, autostart as au
+  from pathlib import Path
+  root = Path(au.__file__).resolve().parent
+  local = {f.stem for f in root.glob('*.py')}
+  core = set(au.CORE)
+  missing = set()
+  for f in core:
+   if not f.endswith('.py'):
+    continue
+   tree = ast.parse((root / f).read_text('utf-8'))
+   for node in ast.walk(tree):
+    names = []
+    if isinstance(node, ast.Import):
+     names = [a.name.split('.')[0] for a in node.names]
+    elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+     names = [node.module.split('.')[0]]
+    for n in names:
+     if n in local and n + '.py' not in core and n != 'test_auto':
+      missing.add((f, n))
+  self.assertEqual(missing, set())
+
+ # 13. fees and the point-in-time replay
+ def test_backtest_fees_follow_turnover(self):
+  import stock_selector as ss
+  r = ss.walk_forward_backtest([0.001] * 10, risk_free=0, fee_bps=10, turnovers=[0.0] * 10)
+  self.assertEqual(r['fees_paid'], 0.0)
+  self.assertEqual(r['fee_basis'], 'turnover')
+
+ def test_replay_is_point_in_time_and_costs_turnover(self):
+  import backtest as bt, datetime as dt
+  days = [dt.date(2025, 1, 1) + dt.timedelta(days=i) for i in range(30)]
+  prices = {'SPY': [(d, 100 * 1.001 ** i) for i, d in enumerate(days)],
+            'TLT': [(d, 100.0 + (i % 2) * 0.1) for i, d in enumerate(days)]}
+  seen = []
+
+  def stub(c, home, vols, prev_weights=None, at=None, price_series=None, **kw):
+   seen.append((at, max(len(v) for v in price_series.values())))
+   return {'booked_weights': {'SPY': 0.5, 'TLT': 0.5}, 'regime': 'normal_expansion'}
+
+  res = bt.replay(None, days, prices, decide_fn=stub, cost_bps=10)
+  # Every decision saw exactly the prices up to its own date.
+  self.assertEqual([n for _, n in seen], list(range(1, 31)))
+  self.assertGreater(res['strategy']['total_return'], 0.0)
+  self.assertGreater(res['strategy']['total_costs'], 0.0)
+  self.assertEqual(res['strategy']['periods'], 29)
+  self.assertIn('benchmark', res)
 
 
 if __name__=='__main__':unittest.main()

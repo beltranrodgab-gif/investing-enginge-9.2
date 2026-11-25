@@ -332,22 +332,32 @@ def black_swan_heat_diffusion(assets, shock_temp=2.5, diffusion=0.35, seed=42, c
             "horizon_days": h, "confidence": confidence, "stress_multiplier": temp}
 
 
-def walk_forward_backtest(returns, risk_free=0.02, fee_bps=5.0, periods_per_year=252):
-    """Walk-forward backtest computing cumulative return, annualized Sharpe, and max drawdown.
+def walk_forward_backtest(returns, risk_free=0.02, fee_bps=5.0, periods_per_year=252, turnovers=None):
+    """Performance statistics for a return stream: cumulative return, annualised Sharpe, max DD.
 
-    Fees are charged on every period and are also subtracted from the mean used by the Sharpe ratio,
-    so a high-fee strategy cannot show an untaxed Sharpe. Annualisation uses the caller's
-    ``periods_per_year`` rather than assuming daily data.
+    Despite the name this does not walk anything forward: it scores returns you supply. For a
+    point-in-time replay of the actual strategy use ``backtest.replay``.
+
+    **Fees.** With ``turnovers`` (one two-sided turnover per period, e.g. 0.20 for a 10% switch)
+    the fee is ``fee_bps * turnover`` — costs follow trading, as they do in reality. Without it the
+    legacy flat charge of ``fee_bps`` every period is applied and ``fee_basis`` says so; that
+    over-charges a low-turnover strategy and under-charges a high-turnover one.
     """
     clean = [v for v in (_num(r) for r in (returns or [])) if v is not None]
     if not clean:
         return {"cumulative_return": 0.0, "sharpe": 0.0, "max_drawdown": 0.0, "periods": 0}
     fee = float(fee_bps or 0.0) / 10000.0
     ppy = max(1, int(periods_per_year or 252))
+    tos = None
+    if turnovers is not None:
+        tos = [(_num(t) or 0.0) for t in turnovers]
+        tos = (tos + [0.0] * len(clean))[:len(clean)]
     equity, peak, max_dd = 1.0, 1.0, 0.0
-    net = []
-    for r in clean:
-        step = float(r) - fee
+    net, total_fee = [], 0.0
+    for i, r in enumerate(clean):
+        charge = fee * max(0.0, tos[i]) if tos is not None else fee
+        total_fee += charge
+        step = float(r) - charge
         net.append(step)
         equity *= (1.0 + step)
         peak = max(peak, equity)
@@ -362,7 +372,9 @@ def walk_forward_backtest(returns, risk_free=0.02, fee_bps=5.0, periods_per_year
     return {"cumulative_return": round(equity - 1.0, 4),
             "sharpe": round(sharpe, 3) if sharpe is not None else None,
             "sharpe_undefined": undefined,
-            "max_drawdown": round(max_dd, 4), "periods": len(net)}
+            "max_drawdown": round(max_dd, 4), "periods": len(net),
+            "fees_paid": round(total_fee, 6),
+            "fee_basis": 'turnover' if tos is not None else 'flat_per_period'}
 
 
 def format_jarvis_alert(regime, cash_buffer, tail_var):
@@ -459,20 +471,21 @@ def statistical_edge_zscore(returns):
 
 
 def dalio_quadrant_weights(growth_trend, inflation_trend):
-    """Ray Dalio All-Weather 4-quadrant macro allocation."""
-    if growth_trend >= 0 and inflation_trend < 0:
-        q = "RISING_GROWTH_FALLING_INFLATION"
-        w = {"equities": 0.45, "bonds": 0.35, "commodities": 0.10, "cash": 0.10}
-    elif growth_trend >= 0 and inflation_trend >= 0:
-        q = "RISING_GROWTH_RISING_INFLATION"
-        w = {"equities": 0.35, "bonds": 0.15, "commodities": 0.35, "cash": 0.15}
-    elif growth_trend < 0 and inflation_trend >= 0:
-        q = "FALLING_GROWTH_RISING_INFLATION"
-        w = {"equities": 0.15, "bonds": 0.25, "commodities": 0.35, "cash": 0.25}
-    else:
-        q = "FALLING_GROWTH_FALLING_INFLATION"
-        w = {"equities": 0.20, "bonds": 0.50, "commodities": 0.10, "cash": 0.20}
-    return {"quadrant": q, "weights": w}
+    """Ray Dalio All-Weather 4-quadrant macro allocation.
+
+    Derived from ``asset_classes.ALL_WEATHER_MAP`` so it can never disagree with the allocation
+    the strategy actually reports (there used to be two different tables). Buckets map to the
+    coarse names this function has always returned: TREASURY -> bonds, GOLD + COMMODITY ->
+    commodities, TBILL -> cash.
+    """
+    from asset_classes import ALL_WEATHER_MAP
+    quad = classify_macro_quadrant(growth_trend, inflation_trend)
+    table = ALL_WEATHER_MAP.get(quad, ALL_WEATHER_MAP['unknown'])
+    w = {"equities": table.get('EQUITY', 0.0),
+         "bonds": table.get('TREASURY', 0.0),
+         "commodities": round(table.get('GOLD', 0.0) + table.get('COMMODITY', 0.0), 6),
+         "cash": table.get('TBILL', 0.0)}
+    return {"quadrant": quad.upper(), "weights": w}
 
 
 def half_kelly_position_size(expected_return, volatility, max_cap=0.35, risk_free=0.0):

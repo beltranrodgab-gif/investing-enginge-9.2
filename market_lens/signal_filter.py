@@ -95,8 +95,11 @@ def history_zscore(values, window=60, cap=3.5):
         return None
     mu = statistics.mean(hist)
     sd = statistics.stdev(hist)
-    if sd <= 1e-12:
-        return 0.0 if latest == mu else (cap if latest > mu else -cap)
+    # A (near-)constant history: float noise of 1e-15 must not be read as a +/-cap surprise.
+    tol = 1e-9 * max(1.0, abs(mu))
+    if sd <= tol:
+        diff = latest - mu
+        return 0.0 if abs(diff) <= tol else (cap if diff > 0 else -cap)
     return max(-cap, min(cap, (latest - mu) / sd))
 
 
@@ -248,11 +251,22 @@ def classify_macro_quadrant(growth_z, inflation_z):
     return 'falling_growth_falling_inflation'
 
 
-def revision_noise_ok(c, series_id, max_revisions=6):
-    """Rule 9 (Simons): Reject series with excessive revision/withdrawal instability."""
+def revision_noise_ok(c, series_id, max_revisions=6, at=None):
+    """Rule 9 (Simons): Reject series with excessive revision/withdrawal instability.
+
+    With ``at`` only revisions recorded by polls started at or before ``at`` count, so a
+    historical decision is not influenced by revisions that happened later.
+    """
     try:
-        revs = c.execute("select count(*) from event where series=? and kind in ('revision','withdrawal')",
-                         (series_id,)).fetchone()[0]
+        if at is None:
+            revs = c.execute("select count(*) from event where series=? and kind in ('revision','withdrawal')",
+                             (series_id,)).fetchone()[0]
+        else:
+            from store import iso
+            stamp = at if isinstance(at, str) else iso(at)
+            revs = c.execute("select count(*) from event join poll on poll.id=event.id where event.series=? "
+                             "and event.kind in ('revision','withdrawal') and poll.started<=?",
+                             (series_id, stamp)).fetchone()[0]
     except Exception:
         return False
     return revs <= max_revisions
@@ -366,37 +380,114 @@ def hurst_exponent(series, max_lag=None):
 
 FREQ_WINDOW = {'D': 250, 'M': 60, 'Q': 20, 'A': 10}
 
+# Direction of each factor relative to the bucket it feeds. Unemployment *falls* when growth is
+# strong, so its z-score must be inverted before it is averaged into growth. Without this a spike
+# in unemployment scored as the strongest possible growth reading (+3.5).
+FACTOR_SIGN = {'ACT-01': 1.0, 'LAB-02': -1.0, 'YLD-03': 1.0,
+               'INF-01': 1.0, 'INF-03': 1.0, 'COM-02': 1.0}
+GROWTH_FACTORS = ('ACT-01', 'LAB-02', 'YLD-03')
+INFLATION_FACTORS = ('INF-01', 'INF-03', 'COM-02')
+
+# Observations per year, used to turn an index level into a year-on-year rate.
+PERIODS_PER_YEAR = {'M': 12, 'Q': 4, 'A': 1, 'W': 52}
+
+# Euro-area members are collapsed into one region: five near-identical votes for the euro area
+# against one for the US was a bias, not diversification.
+EURO_MEMBERS = {'DE', 'FR', 'IT', 'ES', 'NL', 'BE', 'AT', 'PT', 'IE', 'FI', 'GR', 'EA'}
+
+# Approximate shares of world GDP (nominal, rounded). Only relative size matters: the weights are
+# re-normalised over the regions actually present. Unknown regions get a small weight.
+REGION_WEIGHT = {'US': 0.26, 'EA': 0.15, 'CN': 0.17, 'JP': 0.04, 'GB': 0.03, 'CA': 0.02,
+                 'KR': 0.017, 'AU': 0.017, 'MX': 0.015, 'BR': 0.02, 'CH': 0.008,
+                 'SE': 0.006, 'NO': 0.005}
+UNKNOWN_REGION_WEIGHT = 0.005
+
+
+def is_index_level(meta):
+    """True when a series is a price-index *level* (e.g. 'index, Jan 2020=100'), not a rate."""
+    unit = str((meta or {}).get('unit') or '').lower()
+    return unit.startswith('index')
+
+
+def to_yoy(values, freq):
+    """Convert an index-level history into year-on-year % changes.
+
+    A rising price level z-scored against its own past looks 'hot' forever; inflation is the
+    *rate* of change. Returns an empty list when the frequency has no annual lag or the history is
+    shorter than one year.
+    """
+    lag = PERIODS_PER_YEAR.get(freq)
+    clean = [v for v in (_num(x) for x in (values or [])) if v is not None]
+    if not lag or len(clean) <= lag:
+        return []
+    return [100.0 * (b / a - 1.0) for a, b in zip(clean, clean[lag:]) if a > 0]
+
+
+def region_of(meta):
+    geos = (meta or {}).get('geos') or []
+    geo = str(geos[0]).upper() if geos else ''
+    return 'EA' if geo in EURO_MEMBERS else (geo or '??')
+
+
+def _region_weighted(items):
+    """Average z-scores within each region, then GDP-weight the regions."""
+    by_region = {}
+    for sid, region, z in items:
+        by_region.setdefault(region, []).append(z)
+    if not by_region:
+        return None, {}
+    raw = {r: REGION_WEIGHT.get(r, UNKNOWN_REGION_WEIGHT) for r in by_region}
+    total = sum(raw.values())
+    weights = {r: w / total for r, w in raw.items()}
+    value = sum(weights[r] * statistics.mean(zs) for r, zs in by_region.items())
+    return value, {r: round(w, 4) for r, w in weights.items()}
+
+
 def macro_z_scores(series_map, window=None, cap=3.5, freq_of=None):
     """Build growth and inflation z-scores from a {series_id: history} map.
 
-    This closes the gap where ``growth_z``/``inflation_z`` had to be supplied by hand: the quadrant
-    is now driven by the collected data. The most recent observation in each contributing series is
-    z-scored against its own trailing window and then averaged.
+    Each series' newest observation is z-scored against its own trailing window (roughly five
+    years for every frequency: D 250, M 60, Q 20 bars). Three corrections apply before averaging:
 
-    The window is chosen per frequency so every series is compared over roughly five years
-    (D 250, M 60 bars, Q 20 bars). Using one fixed *count* for both daily and monthly series compared
-    60 trading days with 60 months and made the daily z-scores incomparable.
+    * **Sign.** Unemployment is inverted (``FACTOR_SIGN``): rising unemployment lowers growth.
+    * **Rates, not levels.** A series whose unit is an index level is converted to year-on-year
+      % change first, so a steadily rising price level is not read as accelerating inflation.
+    * **Region weighting.** Series are averaged within a region (euro-area members collapse into
+      ``EA``), and regions are weighted by approximate GDP, so five euro-area series no longer
+      outvote the US five to one.
     """
-    growth_ids = ('ACT-01', 'LAB-02', 'YLD-03')
-    inflation_ids = ('INF-01', 'INF-03', 'COM-02')
     growth, inflation = [], []
+    transformed = []
     for sid, hist in (series_map or {}).items():
         meta = M.get(sid, {})
         factor = meta.get('factor')
+        if factor not in FACTOR_SIGN:
+            continue
         freq = (freq_of or {}).get(sid) or meta.get('freq') or 'M'
+        values = hist
+        if is_index_level(meta):
+            values = to_yoy(hist, freq)
+            transformed.append(sid)
         w = window or FREQ_WINDOW.get(freq, 60)
-        z = history_zscore(hist, window=w, cap=cap)
+        z = history_zscore(values, window=w, cap=cap)
         if z is None:
             continue
-        if factor in growth_ids:
-            growth.append((sid, z))
-        elif factor in inflation_ids:
-            inflation.append((sid, z))
+        z = FACTOR_SIGN[factor] * z
+        item = (sid, region_of(meta), z)
+        if factor in GROWTH_FACTORS:
+            growth.append(item)
+        else:
+            inflation.append(item)
+    g_val, g_weights = _region_weighted(growth)
+    i_val, i_weights = _region_weighted(inflation)
     return {
-        'growth_z': round(statistics.mean([z for _, z in growth]), 4) if growth else None,
-        'inflation_z': round(statistics.mean([z for _, z in inflation]), 4) if inflation else None,
+        'growth_z': round(g_val, 4) if g_val is not None else None,
+        'inflation_z': round(i_val, 4) if i_val is not None else None,
         'growth_sources': len(growth),
         'inflation_sources': len(inflation),
-        'growth_detail': {sid: z for sid, z in growth},
-        'inflation_detail': {sid: z for sid, z in inflation},
+        'growth_detail': {sid: round(z, 4) for sid, _, z in growth},
+        'inflation_detail': {sid: round(z, 4) for sid, _, z in inflation},
+        'growth_region_weights': g_weights,
+        'inflation_region_weights': i_weights,
+        'converted_to_yoy': sorted(transformed),
     }

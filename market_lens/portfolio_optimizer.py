@@ -42,35 +42,14 @@ DEFAULT_ASSETS = {
     'DBC':  ('commodity',   0.050, 0.200),
 }
 
-# Cross-asset-class correlation priors. Symmetric; unlisted pairs fall back to 0.25.
-CLASS_CORR = {
-    ('cash', 'short_bond'): 0.30, ('cash', 'bond'): 0.10, ('cash', 'long_bond'): 0.05,
-    ('cash', 'credit'): 0.10, ('cash', 'equity'): 0.00, ('cash', 'growth'): 0.00,
-    ('cash', 'intl_equity'): 0.00, ('cash', 'gold'): 0.00, ('cash', 'commodity'): 0.00,
-    ('short_bond', 'bond'): 0.75, ('short_bond', 'long_bond'): 0.60,
-    ('short_bond', 'credit'): 0.55, ('short_bond', 'equity'): 0.05,
-    ('short_bond', 'growth'): 0.02, ('short_bond', 'intl_equity'): 0.05,
-    ('short_bond', 'gold'): 0.10, ('short_bond', 'commodity'): 0.00,
-    ('bond', 'long_bond'): 0.85, ('bond', 'credit'): 0.70, ('bond', 'equity'): -0.10,
-    ('bond', 'growth'): -0.15, ('bond', 'intl_equity'): -0.05, ('bond', 'gold'): 0.15,
-    ('bond', 'commodity'): -0.05,
-    ('long_bond', 'credit'): 0.65, ('long_bond', 'equity'): -0.20,
-    ('long_bond', 'growth'): -0.25, ('long_bond', 'intl_equity'): -0.10,
-    ('long_bond', 'gold'): 0.20, ('long_bond', 'commodity'): -0.05,
-    ('credit', 'equity'): 0.45, ('credit', 'growth'): 0.40, ('credit', 'intl_equity'): 0.40,
-    ('credit', 'gold'): 0.05, ('credit', 'commodity'): 0.10,
-    ('equity', 'growth'): 0.88, ('equity', 'intl_equity'): 0.82, ('equity', 'gold'): 0.05,
-    ('equity', 'commodity'): 0.25,
-    ('growth', 'intl_equity'): 0.72, ('growth', 'gold'): 0.00, ('growth', 'commodity'): 0.20,
-    ('intl_equity', 'gold'): 0.10, ('intl_equity', 'commodity'): 0.30,
-    ('gold', 'commodity'): 0.35,
-}
+# Cross-asset-class correlation priors now live in ``asset_classes`` so sizing, the optimizer and
+# the risk estimate all use the same numbers.
+from asset_classes import CLASS_CORR, class_corr  # noqa: E402  (re-exported for callers)
 
-
-def class_corr(a, b, default=0.25):
-    if a == b:
-        return 1.0
-    return CLASS_CORR.get((a, b), CLASS_CORR.get((b, a), default))
+# The cash rate the return priors above were written against. When a live rate is supplied
+# (``rf``), every prior is shifted by ``rf - PRIOR_RF``: expected returns are modelled as a risk
+# premium over cash, so a 2% or a 5% rate world is not priced off a fixed 4% assumption.
+PRIOR_RF = 0.04
 
 
 def _num(x):
@@ -123,11 +102,13 @@ def operation_inputs(operations=OPERATIONS, asset_vols=None, asset_mu=None, regi
     whole ladder without changing its shape. The floor of 0.05 keeps the solve well-posed.
     """
     vols, mus, classes = {}, {}, {}
+    live_rf = _num(rf)
+    shift = (live_rf - PRIOR_RF) if live_rf is not None else 0.0
     for name, (cls, mu, vol) in DEFAULT_ASSETS.items():
         user_vol = _num((asset_vols or {}).get(name))
         user_mu = _num((asset_mu or {}).get(name))
         vols[name] = user_vol if user_vol and user_vol > 0 else vol
-        mus[name] = user_mu if user_mu is not None else mu
+        mus[name] = user_mu if user_mu is not None else mu + shift
         classes[name] = cls
     scale = _num(regime_scale)
     scale = 1.0 if scale is None else max(0.0, min(1.0, scale))
@@ -320,21 +301,38 @@ def _greedy_max(mu, caps):
     return w
 
 
-def choose_distribution(frontier, goal_multiple=1.25, years=3.0, max_drawdown=0.25,
-                        paths=2500, seed=11):
-    """Pick the frontier point most likely to reach the goal inside the drawdown limit.
+# Monte Carlo settings for the account choice: bi-weekly steps and fat (Student-t, 5 d.o.f.) tails,
+# so the drawdown limit is tested against realistic crashes rather than quarterly normal draws.
+MC_STEPS_PER_YEAR = 26
+MC_TAIL_DF = 5
+# Frontier points whose goal probability is within this distance of the best are treated as
+# equally good at reaching the goal; the most risk-efficient of them is chosen.
+GOAL_PROB_TOLERANCE = 0.05
 
-    Scoring is the pathwise Monte Carlo, because a drawdown limit is a path question and the
-    closed-form shortcut cannot answer it. Candidates are ordered deterministically, so an
-    unchanged account and unchanged inputs always produce the same choice.
+
+def choose_distribution(frontier, goal_multiple=1.25, years=3.0, max_drawdown=0.25,
+                        paths=2500, seed=11, df=MC_TAIL_DF, steps_per_year=MC_STEPS_PER_YEAR):
+    """Pick a frontier point that reaches the goal inside the drawdown limit, efficiently.
+
+    Scoring is the pathwise Monte Carlo with fat tails, because a drawdown limit is a path
+    question. Every point is scored on the *same* random shocks (common random numbers), so the
+    comparison is fair and deterministic.
+
+    Selection no longer simply maximises the probability of hitting the goal: with an ambitious
+    goal that always pushed the plan to maximum risk. Instead, among the points inside the
+    drawdown limit, those within ``GOAL_PROB_TOLERANCE`` of the best goal probability are kept,
+    and the one with the highest Sharpe ratio (then lower volatility) is chosen. If even the best
+    point has less than a 50% chance, a warning says the goal is unrealistic at that risk.
     """
     pts = [p for p in (frontier or {}).get('points', []) if p.get('volatility') is not None]
     if not pts:
         return {'chosen': None, 'candidates': [], 'reason': 'no frontier points'}
+    steps = max(12, int(round(float(steps_per_year) * float(years))))
+    shocks = ef.make_shocks(paths, steps, seed=seed, df=df)
     rows = []
     for i, p in enumerate(pts):
-        sim = ef.simulate_paths(p['return'], p['volatility'], years=years, paths=paths,
-                                goal=goal_multiple, start=1.0, seed=seed + i)
+        sim = ef.simulate_paths(p['return'], p['volatility'], years=years,
+                                goal=goal_multiple, start=1.0, shocks=shocks)
         if not sim.get('ok'):
             continue
         dd = sim.get('max_drawdown', {})
@@ -353,8 +351,14 @@ def choose_distribution(frontier, goal_multiple=1.25, years=3.0, max_drawdown=0.
     if not pool:
         pool = [min(rows, key=lambda r: (r['dd_p95'] or 0.0))]
         warning = 'no frontier point met the drawdown limit; returned the least risky'
-    chosen = max(pool, key=lambda r: (r['prob_hit_goal'] or 0.0, r['median_wealth'] or 0.0,
-                                     -(r['volatility'] or 0.0)))
+    best_p = max((r['prob_hit_goal'] or 0.0) for r in pool)
+    eligible = [r for r in pool if (r['prob_hit_goal'] or 0.0) >= best_p - GOAL_PROB_TOLERANCE]
+    chosen = max(eligible, key=lambda r: (r['sharpe'] if r['sharpe'] is not None else float('-inf'),
+                                          -(r['volatility'] or 0.0)))
+    if warning is None and best_p < 0.5:
+        warning = ('goal unlikely: the best plan inside the drawdown limit reaches it with %.0f%% '
+                   'probability; the choice favours risk-adjusted return over goal chasing'
+                   % (100.0 * best_p))
     return {
         'chosen': chosen,
         'candidates': sorted(rows, key=lambda r: -(r['prob_hit_goal'] or 0.0)),
@@ -364,7 +368,23 @@ def choose_distribution(frontier, goal_multiple=1.25, years=3.0, max_drawdown=0.
         'goal_multiple': goal_multiple,
         'years': years,
         'max_drawdown': max_drawdown,
+        'monte_carlo': {'paths': len(shocks), 'steps': steps,
+                        'tails': 'student_t(df=%s)' % df if df else 'normal'},
     }
+
+
+def _round_preserving_sum(weights, places=6):
+    """Round weights so that the rounded values add up to the rounded total (largest remainder)."""
+    if not weights:
+        return {}
+    unit = 10 ** places
+    total_units = int(round(min(1.0, sum(weights.values())) * unit))
+    floors = {k: int(math.floor(v * unit)) for k, v in weights.items()}
+    left = total_units - sum(floors.values())
+    order = sorted(weights, key=lambda k: -(weights[k] * unit - floors[k]))
+    for k in order[:max(0, left)]:
+        floors[k] += 1
+    return {k: n / unit for k, n in floors.items() if n > 0}
 
 
 def plan_account(ops, choice, account_value=10000.0, rf=0.04, regime='uncertain'):
@@ -401,12 +421,16 @@ def plan_account(ops, choice, account_value=10000.0, rf=0.04, regime='uncertain'
     # (``1 - total_share``), and money inside a sleeve held back to respect its risk budget
     # (``1 - risky_fraction``). Reporting only the first would show "0% cash" while a defensive
     # plan had a fifth of the account uninvested.
-    invested_assets = sum(assets.values())
+    # Round the asset weights first and derive the money from the *rounded* weights, so the
+    # reported weights, invested amount and cash always reconcile exactly.
+    shown = _round_preserving_sum({a: w for a, w in sorted(assets.items()) if w > 1e-9}, 6)
+    invested_assets = sum(shown.values())
+    invested_money = round(value * invested_assets, 2)
     return {
         'operations': rows,
-        'assets': {a: round(w, 6) for a, w in sorted(assets.items()) if w > 1e-9},
-        'invested': round(round(value * invested_assets, 2), 2),
-        'cash': round(max(0.0, value * (1.0 - invested_assets)), 2),
+        'assets': shown,
+        'invested': invested_money,
+        'cash': round(max(0.0, value - invested_money), 2),
         'account_value': round(value, 2),
         'portfolio_return': round(chosen['return'], 6),
         'portfolio_volatility': round(chosen['volatility'], 6),

@@ -66,7 +66,8 @@ def plan_view(c, home, arg, path='/api/plan'):
     scale = risk_scale if risk_scale is not None else decision.get('risk_scale', 1.0)
     built = build_plan(account_value=account, asset_vols=vols or None, regime_scale=scale,
                        goal_multiple=goal, years=years, max_drawdown=max_dd,
-                       regime=decision.get('regime', 'uncertain'))
+                       regime=decision.get('regime', 'uncertain'),
+                       rf=decision.get('risk_free_rate') or 0.04)
     plan = built.get('plan')
     frontier = built.get('frontier') or {}
     out = {
@@ -74,6 +75,7 @@ def plan_view(c, home, arg, path='/api/plan'):
         'account_value': account,
         'regime': decision.get('regime'),
         'risk_scale': scale,
+        'risk_free_rate': decision.get('risk_free_rate'),
         'decision': {k: decision.get(k) for k in (
             'regime', 'regime_confirmed', 'quadrant', 'target_weights', 'booked_weights',
             'cash', 'portfolio_vol_estimate', 'target_vol', 'inputs_used', 'guard')},

@@ -42,6 +42,10 @@ def _validate(state):
         out['started_utc'] = str(state['started_utc'])
     if state.get('last_utc'):
         out['last_utc'] = str(state['last_utc'])
+    marks = state.get('marks')
+    if isinstance(marks, dict):
+        out['marks'] = {str(k): float(v) for k, v in marks.items()
+                        if isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0}
     history = state.get('history')
     if isinstance(history, list):
         out['history'] = history[-500:]

@@ -31,8 +31,12 @@ from strategy_adapter import load_screened_signals
 REGIME_META = {
     'normal_expansion': (1.0, 'Normal expansion: favour equities and growth while monitoring '
                               'the yield curve.'),
-    'defensive_inverted_curve': (0.5, 'Inverted yield curve: elevated recession risk over the '
-                                      'next 6-12 months; favour Treasuries, gold and T-bills.'),
+    'defensive_inverted_curve': (0.75, 'Inverted yield curve: an early recession warning, often '
+                                       '6-24 months ahead; risk trimmed to 75% while equities '
+                                       'may still rise.'),
+    'post_inversion_steepening': (0.5, 'Curve re-steepening after an inversion: historically the '
+                                       'phase when recessions begin; risk halved, favour '
+                                       'Treasuries, gold and T-bills.'),
     'tight_liquidity': (0.75, 'Tight liquidity: elevated funding rates may slow growth; risks '
                               'scaled to 75%.'),
     'uncertain': (0.5, 'Regime unresolved: risk halved until the evidence resolves, rather than '

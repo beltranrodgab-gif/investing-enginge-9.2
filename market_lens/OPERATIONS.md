@@ -31,12 +31,23 @@ python3 market_lens.py strategy --vol SPY=0.16 --vol TLT=0.12 --vol GLD=0.14
 
 - `--vol ASSET=VOL` (repeatable, required) is the annualised volatility you assign to each asset. The tool does not guess these.
 - `--target-vol` (default `0.10`) is the portfolio volatility the sizing aims for; a tighter target produces smaller positions.
-- `--max-turnover` (default `0.50`) is a *budget* per step, not a kill switch. A larger required switch is booked in instalments and the rest stays in cash.
+- `--max-turnover` (default `0.50`) is a *budget* per step, not a kill switch. A larger required switch is booked in instalments and the rest stays in cash. Turnover is **two-sided** (buys + sells): moving 10% of the book from one asset to another uses 0.20 of the budget. The output also reports `turnover_one_way`.
 - `--history history.json` is an optional JSON list of previous regime names, used to require `confirm_days` agreement before a regime flip.
 
 What it returns: the regime and its risk scale, the macro quadrant with growth/inflation z-scores and which series produced them, macro diffusion, the target and actually booked weights, cash, turnover, an estimated portfolio volatility, the all-weather weights for the quadrant, explicit per-asset orders, any budget warnings, and the list of series that were used or rejected with reasons.
 
-It fails closed. With no scoreable macro input it targets cash rather than sizing a book on no evidence; a missing or implausible SOFR or curve leaves the regime `uncertain` at half risk. The volatility figure is a zero-correlation estimate and therefore understates a correlated book, and observational macro data is not an executable price. Treat the output as decision support, not a forecast or an execution feed.
+How the decision is built:
+
+- **Sizing** is inverse-volatility, capped at 40% per asset, and scaled so the portfolio hits `--target-vol` **including correlations** (class priors in `asset_classes.py`; 0.5 for unrecognised tickers). `portfolio_vol_estimate` uses the same correlations.
+- **The macro quadrant tilts the weights** toward the All-Weather buckets it favours (half strength by default); `tilts` shows the multipliers. An unknown quadrant applies no tilt.
+- **Growth/inflation z-scores**: unemployment counts *against* growth, price-index levels are converted to year-on-year rates before scoring, and countries are averaged within region (euro members collapse into `EA`) then GDP-weighted.
+- **Regime** uses the curve and SOFR *history*: an inverted curve trims risk to 75% (early warning); a re-steepening after an inversion halves it (`post_inversion_steepening`); a 1 pp rise in SOFR over ~6 months is `tight_liquidity` at 75%.
+- **Drawdown guard** measures against a rolling one-year peak and switches off again once NAV is back above its 50-period average.
+- `risk_free_rate` is the live SOFR, and `jarvis`/`--plan` price their expected returns off it.
+
+It fails safe without dumping the book. With no scoreable macro input it reports `data_outage: true` and steps toward **half of the current exposure inside the turnover budget**; a persistent outage therefore exits gradually, one budgeted step per run, instead of selling everything at once. A missing or implausible SOFR or curve leaves the regime `uncertain` at half risk. Observational macro data is not an executable price. Treat the output as decision support, not a forecast or an execution feed.
+
+Every read is point-in-time, so `backtest.replay(c, dates, prices)` can replay the strategy over history without look-ahead and compare it with an equal-weight buy-and-hold benchmark. Run proposed changes through it before trusting them.
 
 Add `--jarvis` to embed the supervisor briefing and change triggers, `--plan --account 50000` to add the account spread, and `--state state.json` to remember the previous decision so the next run can tell you whether a change is needed.
 
@@ -72,11 +83,11 @@ python3 market_lens.py paper --nav 100000 --vol SPY=0.16 --vol TLT=0.13 \
 
 What it does each run:
 
-- **Marks the book to market first**, using the last two prices per asset. The NAV moves with prices, not only with costs, and cash does not earn the equity return.
+- **Marks the book to market first**, from the price stored at the previous run (`marks` in the account file) to the latest price, so every move since the last run counts even if runs were skipped. Without a stored mark it uses the last two prices; `mark_basis` says which. The NAV moves with prices, not only with costs, and cash does not earn the equity return.
 - **Sizes the target** from the screened export and the volatilities you supply, then **executes it inside the turnover budget**. A large switch is spread across runs and the remainder stays in cash; `--max-turnover` is a budget, not a target.
 - **Charges `--cost-bps` on turnover** (default 10 bps) and reports the cost separately from the market move.
 - **Reports unpriced holdings by name** in `unpriced`. They are carried flat and that is stated, because silently marking an unpriced asset as unchanged flatters the result.
-- **Labels a fail-closed exit.** With no usable macro input the strategy leaves risk entirely; those exits are marked `emergency: true` and fully costed, rather than being hidden inside the budget.
+- **Handles a data outage gradually.** With no usable macro input the run is labelled `data_outage: true` and the book steps toward half of its current exposure inside the turnover budget, fully costed. It no longer sells everything in one unbudgeted step.
 - **Persists the account** to `<state folder>/paper_account.json` (override with `--account`). The file is written atomically and validated on read, so a corrupt file starts a fresh account instead of trading on bad state. Use `--reset` to start over, and `--history` to include the per-period NAV.
 
 Prices are not collected by the worker; you supply them with `--price`, `--price-file` (a CSV with `asset,price` columns) or `--symbols` (below). `risk_scale_suggestion` reports the risk scale the paper results would justify.

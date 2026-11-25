@@ -213,29 +213,25 @@ def price_series(series_map):
             if len(entry.get('prices') or []) >= MIN_PRICES}
 
 
-def realized_vols_from(series_map, window=60):
+def realized_vols_from(series_map, window=20, long_window=250, halflife=30):
     """Annualised volatility per symbol from the fetched history.
 
-    This lets a paper run size the book from the market's own recent risk instead of asking the
-    user to type a volatility. Too little history is refused rather than guessed.
+    Uses ``asset_classes.blended_vol``: the larger of a short-window estimate and a long EWMA
+    estimate, so the size reacts quickly to a shock but does not balloon on a brief calm patch.
+    Too little history is refused rather than guessed.
     """
-    import statistics
+    from asset_classes import blended_vol
     vols, skipped = {}, {}
     for sym, entry in (series_map or {}).items():
         px = [float(p) for p in (entry.get('prices') or []) if p]
         if len(px) < MIN_HISTORY_FOR_VOL:
             skipped[sym] = 'only %d prices' % len(px)
             continue
-        tail = px[-(window + 1):]
-        rets = [math.log(b / a) for a, b in zip(tail, tail[1:]) if a > 0 and b > 0]
-        if len(rets) < 2:
-            skipped[sym] = 'not enough returns'
-            continue
-        sd = statistics.stdev(rets)
-        if not math.isfinite(sd) or sd <= 0:
+        sd = blended_vol(px, short_window=window, long_window=long_window, halflife=halflife)
+        if sd is None:
             skipped[sym] = 'zero variance'
             continue
-        vols[sym] = round(sd * math.sqrt(252), 6)
+        vols[sym] = round(sd, 6)
     return vols, skipped
 
 
